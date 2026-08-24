@@ -1,0 +1,29 @@
+import { Router } from 'express';
+import authRoutes from './auth/index.js';
+import productRoutes from './products/index.js';
+import categoryRoutes from './categories/index.js';
+import cartRoutes from './cart/index.js';
+import orderRoutes from './orders/index.js';
+import reviewRoutes from './reviews/index.js';
+import slideRoutes from './slides/index.js';
+import adminRoutes from './admin/index.js';
+import docsRoutes from './docs/index.js';
+import { getHealthCheck } from './docs/controller.js';
+
+const apiRouter = Router();
+
+// Health route at /api/health
+apiRouter.get('/health', getHealthCheck);
+
+// Mount modular sub-routers
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/products', productRoutes);
+apiRouter.use('/categories', categoryRoutes);
+apiRouter.use('/cart', cartRoutes);
+apiRouter.use('/orders', orderRoutes);
+apiRouter.use('/reviews', reviewRoutes);
+apiRouter.use('/slides', slideRoutes);
+apiRouter.use('/admin', adminRoutes);
+apiRouter.use('/docs', docsRoutes);
+
+export default apiRouter;

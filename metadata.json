@@ -1,0 +1,6 @@
+{
+  "name": "Node.js Express E-Commerce & Admin REST API",
+  "description": "سیستم کامل بک‌اند فروشگاهی Node.js و Express با احراز هویت JWT و Bcrypt، ساختار مدل‌های MongoDB، پنل مدیریت، سفارشات، سبد خرید، محصولات، نظرات و اسلایدرها به همراه کاوشگر تعاملی API و فروشگاه",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
