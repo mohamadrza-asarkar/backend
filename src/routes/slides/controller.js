@@ -1,4 +1,4 @@
-import { SlideModel } from '../../models/slide.model.js';
+import { SlideModel } from '../../models/slide.js';
 import { successResponse, errorResponse } from '../../utils/response.js';
 
 /**

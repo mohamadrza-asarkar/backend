@@ -1,5 +1,5 @@
-import { CartModel } from '../../models/cart.model.js';
-import { ProductModel } from '../../models/product.model.js';
+import { CartModel } from '../../models/cart.js';
+import { ProductModel } from '../../models/product.js';
 import { successResponse, errorResponse } from '../../utils/response.js';
 
 // Helper to recalculate cart totals

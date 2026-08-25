@@ -1,4 +1,4 @@
-import { UserModel } from '../../models/user.model.js';
+import { UserModel } from '../../models/user.js';
 import { hashPassword, comparePassword } from '../../utils/password.js';
 import { generateToken } from '../../utils/jwt.js';
 import { successResponse, errorResponse } from '../../utils/response.js';

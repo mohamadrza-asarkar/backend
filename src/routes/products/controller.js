@@ -1,8 +1,8 @@
-import { ProductModel } from '../../models/product.model.js';
+import { ProductModel } from '../../models/product.js';
 import { successResponse, errorResponse, paginateResponse } from '../../utils/response.js';
 
 /**
- * Get list of products with filtering, search, sorting and pagination
+ * دریافت لیست محصولات با قابلیت فیلتر، جستجو با کوئری، مرتب‌سازی و صفحه‌بندی
  * GET /api/products
  */
 export const getProducts = async (req, res, next) => {
@@ -10,18 +10,17 @@ export const getProducts = async (req, res, next) => {
     const {
       page = 1,
       limit = 10,
-      category,
       search,
-      isFeatured,
+      q,
+      isAvailable,
       minPrice,
       maxPrice,
       sortBy = 'newest'
     } = req.query;
 
     const filter = {};
-    if (category) filter.category = category;
-    if (search) filter.search = search;
-    if (isFeatured !== undefined) filter.isFeatured = isFeatured === 'true';
+    if (search || q) filter.search = search || q;
+    if (isAvailable !== undefined) filter.isAvailable = isAvailable;
     if (minPrice !== undefined) filter.minPrice = Number(minPrice);
     if (maxPrice !== undefined) filter.maxPrice = Number(maxPrice);
     if (sortBy) filter.sortBy = sortBy;
@@ -32,36 +31,60 @@ export const getProducts = async (req, res, next) => {
     const startIndex = (Number(page) - 1) * Number(limit);
     const paginatedItems = allProducts.slice(startIndex, startIndex + Number(limit));
 
-    return paginateResponse(res, paginatedItems, page, limit, total, 'لیست محصولات با موفقیت دریافت شد');
+    return paginateResponse(res, paginatedItems, page, limit, total, 'لیست محصولات برنج با موفقیت دریافت شد');
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Get featured products
- * GET /api/products/featured
+ * جستجوی پیشرفته محصولات با کوئری
+ * GET /api/products/search?q=...&minPrice=...&maxPrice=...&isAvailable=...
  */
-export const getFeaturedProducts = async (req, res, next) => {
+export const searchProducts = async (req, res, next) => {
   try {
-    const products = await ProductModel.find({ isFeatured: true });
-    return successResponse(res, 200, 'محصولات ویژه با موفقیت دریافت شد', products.slice(0, 8));
+    const {
+      q = '',
+      isAvailable,
+      minPrice,
+      maxPrice,
+      sortBy = 'newest',
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    const filter = { search: q };
+    if (isAvailable !== undefined) filter.isAvailable = isAvailable;
+    if (minPrice !== undefined) filter.minPrice = Number(minPrice);
+    if (maxPrice !== undefined) filter.maxPrice = Number(maxPrice);
+    if (sortBy) filter.sortBy = sortBy;
+
+    const matchingProducts = await ProductModel.find(filter);
+    const total = matchingProducts.length;
+
+    const startIndex = (Number(page) - 1) * Number(limit);
+    const paginatedItems = matchingProducts.slice(startIndex, startIndex + Number(limit));
+
+    return successResponse(res, 200, `نتایج جستجو برای عبارت "${q}" با موفقیت دریافت شد`, {
+      query: q,
+      totalResults: total,
+      page: Number(page),
+      limit: Number(limit),
+      products: paginatedItems
+    });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Get single product by ID
+ * دریافت اطلاعات یک محصول بر اساس شناسه
  * GET /api/products/:id
  */
 export const getProductById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    let product = await ProductModel.findById(id);
-    if (!product) {
-      product = await ProductModel.findBySlug(id);
-    }
+    const product = await ProductModel.findById(id);
 
     if (!product) {
       return errorResponse(res, 404, 'محصول مورد نظر یافت نشد');
@@ -74,7 +97,7 @@ export const getProductById = async (req, res, next) => {
 };
 
 /**
- * Create new product (Admin Only)
+ * ایجاد محصول جدید (مخصوص مدیر / Admin)
  * POST /api/products
  */
 export const createProduct = async (req, res, next) => {
@@ -82,14 +105,14 @@ export const createProduct = async (req, res, next) => {
     const productData = req.body;
     const createdProduct = await ProductModel.create(productData);
 
-    return successResponse(res, 201, 'محصول جدید با موفقیت ایجاد گردید', createdProduct);
+    return successResponse(res, 201, 'محصول برنج جدید با موفقیت ایجاد گردید', createdProduct);
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Update existing product (Admin Only)
+ * ویرایش محصول موجود (مخصوص مدیر / Admin)
  * PUT /api/products/:id
  */
 export const updateProduct = async (req, res, next) => {
@@ -109,7 +132,7 @@ export const updateProduct = async (req, res, next) => {
 };
 
 /**
- * Delete product (Admin Only)
+ * حذف محصول (مخصوص مدیر / Admin)
  * DELETE /api/products/:id
  */
 export const deleteProduct = async (req, res, next) => {

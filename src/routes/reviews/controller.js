@@ -1,5 +1,5 @@
-import { ReviewModel } from '../../models/review.model.js';
-import { ProductModel } from '../../models/product.model.js';
+import { ReviewModel } from '../../models/review.js';
+import { ProductModel } from '../../models/product.js';
 import { successResponse, errorResponse } from '../../utils/response.js';
 
 /**

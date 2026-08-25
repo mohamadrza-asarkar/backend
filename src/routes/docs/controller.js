@@ -16,18 +16,17 @@ export const getOpenApiSpec = (req, res) => {
   const spec = {
     openapi: '3.0.0',
     info: {
-      title: 'E-Commerce Node.js Express REST API (Standard Schemas)',
+      title: 'فروشگاه برنج و مشتقات (REST API)',
       version: '1.0.0',
-      description: 'Production-ready REST API built with Node.js, Express, ES Modules, and MongoDB/Mongoose architecture.\n\n' +
-        '### اسکیماهای پیاده‌سازی شده:\n' +
-        '- **اسلاید (Slide)**: فقط یک تصویر (image) که با مالتر (Multer) ذخیره می‌شود.\n' +
+      description: 'بک‌اند فروشگاه تخصصی برنج، نیم دانه برنج و ریز دانه برنج با احراز هویت JWT، آپلود تصاویر با Multer و قابلیت جستجوی پیشرفته با کوئری.\n\n' +
+        '### اسکیماهای اصلی سیستم:\n' +
+        '- **اسلاید (Slide)**: فقط یک تصویر (image) که با مالتر (Multer) یا URL ذخیره می‌شود.\n' +
         '- **محصول (Product)**: شامل اسم (name)، توضیحات (description)، قیمت (price)، وضعیت موجودی (isAvailable) و نظرات (reviews).\n' +
-        '- **کارت (Cart)**: شامل چند محصول (products).\n' +
+        '- **کارت / سبد خرید (Cart)**: شامل چند محصول (products).\n' +
         '- **سفارش (Order)**: شامل محصولات (products)، نام و نام خانوادگی خریدار (buyerName)، آدرس (address) و شماره تلفن (phone).\n' +
         '- **نظر (Review)**: شامل فرستنده (sender)، متن نظر (comment / text) و امتیاز (rating).',
       contact: {
-        name: 'Backend Engineering Team',
-        email: 'api-support@example.com'
+        name: 'Backend Support'
       }
     },
     servers: [
@@ -42,7 +41,7 @@ export const getOpenApiSpec = (req, res) => {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'Enter your JWT Bearer token format: Bearer <token>'
+          description: 'Format: Bearer <token>'
         }
       },
       schemas: {
@@ -59,10 +58,12 @@ export const getOpenApiSpec = (req, res) => {
           required: ['name', 'price'],
           properties: {
             _id: { type: 'string' },
-            name: { type: 'string', example: 'گوشی موبایل آیفون 15 پرو مکس' },
-            description: { type: 'string', example: 'توضیحات کامل محصول' },
-            price: { type: 'number', example: 84500000 },
+            name: { type: 'string', example: 'برنج طارم هاشمی درجه یک گیلان (کیسه ۱۰ کیلوگرمی)' },
+            description: { type: 'string', example: 'برنج اعلا و ممتاز طارم هاشمی کشت اول گیلان' },
+            price: { type: 'number', example: 1350000 },
             isAvailable: { type: 'boolean', example: true },
+            countInStock: { type: 'number', example: 45 },
+            image: { type: 'string', example: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800&q=80' },
             reviews: { type: 'array', items: { $ref: '#/components/schemas/Review' } }
           }
         },
@@ -94,7 +95,7 @@ export const getOpenApiSpec = (req, res) => {
             _id: { type: 'string' },
             orderNumber: { type: 'string' },
             buyerName: { type: 'string', example: 'علیرضا رضایی' },
-            address: { type: 'string', example: 'تهران، بلوار کشاورز، پلاک ۱۲' },
+            address: { type: 'string', example: 'تهران، بلوار کشاورز، خیابان فلسطین شمالی، پلاک ۱۲' },
             phone: { type: 'string', example: '09351112233' },
             products: { type: 'array', items: { type: 'object' } },
             totalPrice: { type: 'number' },
@@ -108,7 +109,7 @@ export const getOpenApiSpec = (req, res) => {
             _id: { type: 'string' },
             productId: { type: 'string' },
             sender: { type: 'string', example: 'علیرضا رضایی' },
-            comment: { type: 'string', example: 'کیفیت عالی و بدنه مقاوم' },
+            comment: { type: 'string', example: 'عطر و ری این برنج هاشمی فوق‌العاده است.' },
             rating: { type: 'number', minimum: 1, maximum: 5, example: 5 },
             createdAt: { type: 'string', format: 'date-time' }
           }
@@ -116,50 +117,16 @@ export const getOpenApiSpec = (req, res) => {
       }
     },
     paths: {
-      '/slides': {
-        get: {
-          tags: ['Slides'],
-          summary: 'دریافت اسلایدرها (تصاویر)',
-          responses: {
-            200: { description: 'لیست اسلایدها' }
-          }
-        },
-        post: {
-          tags: ['Slides'],
-          summary: 'افزودن اسلاید جدید با مالتر (Multer Upload) یا URL',
-          security: [{ bearerAuth: [] }],
-          requestBody: {
-            content: {
-              'multipart/form-data': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    image: { type: 'string', format: 'binary', description: 'فایل تصویر جهت آپلود با Multer' }
-                  }
-                }
-              },
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    image: { type: 'string', example: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da' }
-                  }
-                }
-              }
-            }
-          },
-          responses: {
-            201: { description: 'اسلاید با موفقیت ایجاد شد' }
-          }
-        }
-      },
       '/products': {
         get: {
           tags: ['Products'],
-          summary: 'لیست محصولات با نام، توضیحات، قیمت، موجودی (isAvailable) و نظرات',
+          summary: 'لیست محصولات برنج با فیلتر، جستجو و صفحه‌بندی',
           parameters: [
-            { name: 'isAvailable', in: 'query', schema: { type: 'boolean' } },
-            { name: 'search', in: 'query', schema: { type: 'string' } },
+            { name: 'search', in: 'query', schema: { type: 'string' }, description: 'جستجو در نام و توضیحات' },
+            { name: 'isAvailable', in: 'query', schema: { type: 'boolean' }, description: 'فیلتر موجودی (true/false)' },
+            { name: 'minPrice', in: 'query', schema: { type: 'number' } },
+            { name: 'maxPrice', in: 'query', schema: { type: 'number' } },
+            { name: 'sortBy', in: 'query', schema: { type: 'string', enum: ['newest', 'price-asc', 'price-desc'] } },
             { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
             { name: 'limit', in: 'query', schema: { type: 'integer', default: 10 } }
           ],
@@ -167,7 +134,7 @@ export const getOpenApiSpec = (req, res) => {
         },
         post: {
           tags: ['Products'],
-          summary: 'ایجاد محصول جدید (Admin)',
+          summary: 'ایجاد محصول جدید برنج (Admin)',
           security: [{ bearerAuth: [] }],
           requestBody: {
             required: true,
@@ -180,6 +147,53 @@ export const getOpenApiSpec = (req, res) => {
             }
           },
           responses: { 201: { description: 'محصول ایجاد شد' } }
+        }
+      },
+      '/products/search': {
+        get: {
+          tags: ['Products'],
+          summary: 'جستجوی پیشرفته برنج با کوئری q',
+          parameters: [
+            { name: 'q', in: 'query', required: true, schema: { type: 'string' }, description: 'عبارت جستجو (مثال: هاشمی، نیم دانه، ریز دانه)' },
+            { name: 'isAvailable', in: 'query', schema: { type: 'boolean' } },
+            { name: 'minPrice', in: 'query', schema: { type: 'number' } },
+            { name: 'maxPrice', in: 'query', schema: { type: 'number' } },
+            { name: 'sortBy', in: 'query', schema: { type: 'string' } }
+          ],
+          responses: { 200: { description: 'نتایج جستجو' } }
+        }
+      },
+      '/slides': {
+        get: {
+          tags: ['Slides'],
+          summary: 'دریافت اسلایدها (تصاویر)',
+          responses: { 200: { description: 'لیست اسلایدها' } }
+        },
+        post: {
+          tags: ['Slides'],
+          summary: 'افزودن اسلاید جدید با مالتر (Multer Upload) یا URL',
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    image: { type: 'string', format: 'binary' }
+                  }
+                }
+              },
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    image: { type: 'string', example: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=1600&q=80' }
+                  }
+                }
+              }
+            }
+          },
+          responses: { 201: { description: 'اسلاید با موفقیت ایجاد شد' } }
         }
       },
       '/cart': {
@@ -262,7 +276,7 @@ export const getOpenApiSpec = (req, res) => {
                   properties: {
                     productId: { type: 'string', example: 'prod-1' },
                     sender: { type: 'string', example: 'علیرضا رضایی' },
-                    comment: { type: 'string', example: 'کیفیت ساخت عالی و ارسال سریع' },
+                    comment: { type: 'string', example: 'کیفیت عطر و پخت عالی' },
                     rating: { type: 'number', example: 5 }
                   }
                 }
@@ -290,8 +304,8 @@ export const getPostmanCollection = (req, res) => {
 
   const collection = {
     info: {
-      name: 'E-Commerce Backend REST API (Schemas Verified)',
-      description: 'کالکشن کامل Postman با اسکیماهای اختصاصی اسلاید با مالتر، محصول با نظرات و موجودی، کارت با چند محصول، سفارش با اطلاعات خریدار و نظرات با فرستنده و امتیاز.',
+      name: 'فروشگاه برنج و مشتقات - REST API Postman Collection',
+      description: 'کالکشن کامل Postman با تمامی متدها، احراز هویت JWT، سرچ با کوئری و مدیریت محصولات برنج، نیم دانه و ریز دانه.',
       schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
     },
     variable: [
@@ -300,6 +314,53 @@ export const getPostmanCollection = (req, res) => {
     ],
     item: [
       {
+        name: 'Products & Search (برنج، نیم دانه، ریز دانه)',
+        item: [
+          {
+            name: 'List Products (with query filtering)',
+            request: {
+              method: 'GET',
+              url: { raw: '{{baseUrl}}/products?search=هاشمی&isAvailable=true&page=1&limit=10', host: ['{{baseUrl}}'], path: ['products'] }
+            }
+          },
+          {
+            name: 'Search Products by Query (q)',
+            request: {
+              method: 'GET',
+              url: { raw: '{{baseUrl}}/products/search?q=نیم دانه', host: ['{{baseUrl}}'], path: ['products', 'search'] }
+            }
+          },
+          {
+            name: 'Get Product By ID',
+            request: {
+              method: 'GET',
+              url: { raw: '{{baseUrl}}/products/prod-1', host: ['{{baseUrl}}'], path: ['products', 'prod-1'] }
+            }
+          },
+          {
+            name: 'Create Product (Admin)',
+            request: {
+              method: 'POST',
+              header: [
+                { key: 'Authorization', value: 'Bearer {{token}}' },
+                { key: 'Content-Type', value: 'application/json' }
+              ],
+              body: {
+                mode: 'raw',
+                raw: JSON.stringify({
+                  name: 'برنج دم سیاه صدری درجه یک',
+                  description: 'برنج معطر و دانه‌بلند دم سیاه گیلان، پخت عالی و ری فراوان',
+                  price: 1550000,
+                  isAvailable: true,
+                  countInStock: 20
+                }, null, 2)
+              },
+              url: { raw: '{{baseUrl}}/products', host: ['{{baseUrl}}'], path: ['products'] }
+            }
+          }
+        ]
+      },
+      {
         name: 'Slides (Multer Image)',
         item: [
           {
@@ -307,57 +368,6 @@ export const getPostmanCollection = (req, res) => {
             request: {
               method: 'GET',
               url: { raw: '{{baseUrl}}/slides', host: ['{{baseUrl}}'], path: ['slides'] }
-            }
-          },
-          {
-            name: 'Create Slide (Image URL or Multer)',
-            request: {
-              method: 'POST',
-              header: [
-                { key: 'Authorization', value: 'Bearer {{token}}' },
-                { key: 'Content-Type', value: 'application/json' }
-              ],
-              body: {
-                mode: 'raw',
-                raw: JSON.stringify({
-                  image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600&q=80'
-                }, null, 2)
-              },
-              url: { raw: '{{baseUrl}}/slides', host: ['{{baseUrl}}'], path: ['slides'] }
-            }
-          }
-        ]
-      },
-      {
-        name: 'Products (Name, Description, Price, isAvailable, Reviews)',
-        item: [
-          {
-            name: 'List Products',
-            request: {
-              method: 'GET',
-              url: { raw: '{{baseUrl}}/products?page=1&limit=10&isAvailable=true', host: ['{{baseUrl}}'], path: ['products'] }
-            }
-          },
-          {
-            name: 'Create Product',
-            request: {
-              method: 'POST',
-              header: [
-                { key: 'Authorization', value: 'Bearer {{token}}' },
-                { key: 'Content-Type', value: 'application/json' }
-              ],
-              body: {
-                mode: 'raw',
-                raw: JSON.stringify({
-                  name: 'گوشی موبایل گلکسی S24 اولترا',
-                  description: 'گوشی پرچمدار با قابلیت‌های هوش مصنوعی Galaxy AI و قلم S-Pen',
-                  price: 72000000,
-                  isAvailable: true,
-                  category: 'موبایل و تبلت',
-                  image: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=800&q=80'
-                }, null, 2)
-              },
-              url: { raw: '{{baseUrl}}/products', host: ['{{baseUrl}}'], path: ['products'] }
             }
           }
         ]
@@ -379,7 +389,7 @@ export const getPostmanCollection = (req, res) => {
               header: [{ key: 'Content-Type', value: 'application/json' }],
               body: {
                 mode: 'raw',
-                raw: JSON.stringify({ productId: 'prod-1', quantity: 1 }, null, 2)
+                raw: JSON.stringify({ productId: 'prod-1', quantity: 2 }, null, 2)
               },
               url: { raw: '{{baseUrl}}/cart/items', host: ['{{baseUrl}}'], path: ['cart', 'items'] }
             }
@@ -387,7 +397,7 @@ export const getPostmanCollection = (req, res) => {
         ]
       },
       {
-        name: 'Orders (Products, BuyerName, Address, Phone)',
+        name: 'Orders (BuyerName, Address, Phone, Products)',
         item: [
           {
             name: 'Create Order',
@@ -401,7 +411,7 @@ export const getPostmanCollection = (req, res) => {
                 mode: 'raw',
                 raw: JSON.stringify({
                   buyerName: 'علیرضا رضایی',
-                  address: 'تهران، میدان ونک، خیابان ولیعصر، کوچه لاله، پلاک ۲۴',
+                  address: 'تهران، میدان ونک، خیابان ملاصدرا، پلاک ۳۰',
                   phone: '09123456789'
                 }, null, 2)
               },
@@ -441,7 +451,7 @@ export const getPostmanCollection = (req, res) => {
                 raw: JSON.stringify({
                   productId: 'prod-1',
                   sender: 'علیرضا رضایی',
-                  comment: 'بسیار از کیفیت محصول و ارسال سریع راضی هستم.',
+                  comment: 'پخت این برنج عالی و بسیار خوش‌عطر بود.',
                   rating: 5
                 }, null, 2)
               },
@@ -467,7 +477,7 @@ export const getHealthCheck = (req, res) => {
     uptime: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    server: 'Node.js Express REST API (ESM)'
+    server: 'Rice E-Commerce REST API (Node.js & Express)'
   });
 };
 
@@ -487,7 +497,6 @@ export const getSystemMetrics = (req, res) => {
     counts: {
       users: db.users.length,
       products: db.products.length,
-      categories: db.categories.length,
       orders: db.orders.length,
       carts: db.carts.length,
       reviews: db.reviews.length,
@@ -520,9 +529,6 @@ export const getCollectionDocs = (req, res) => {
         const { password, ...rest } = u;
         return rest;
       });
-      break;
-    case 'categories':
-      docs = db.categories;
       break;
     case 'orders':
       docs = db.orders;
@@ -630,4 +636,3 @@ export const hashTestPassword = async (req, res) => {
 };
 
 export const testBcryptLab = hashTestPassword;
-

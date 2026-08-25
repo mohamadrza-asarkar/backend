@@ -1,8 +1,7 @@
-import { UserModel } from '../../models/user.model.js';
-import { ProductModel } from '../../models/product.model.js';
-import { OrderModel } from '../../models/order.model.js';
-import { CategoryModel } from '../../models/category.model.js';
-import { ReviewModel } from '../../models/review.model.js';
+import { UserModel } from '../../models/user.js';
+import { ProductModel } from '../../models/product.js';
+import { OrderModel } from '../../models/order.js';
+import { ReviewModel } from '../../models/review.js';
 import { successResponse, errorResponse } from '../../utils/response.js';
 
 /**
@@ -15,15 +14,14 @@ export const getDashboardStats = async (req, res, next) => {
     const totalProducts = await ProductModel.countDocuments();
     const totalOrders = await OrderModel.countDocuments();
     const orders = await OrderModel.find();
-    const categories = await CategoryModel.find();
     const reviews = await ReviewModel.find();
 
     const totalRevenue = orders
-      .filter(o => o.paymentStatus === 'paid')
-      .reduce((sum, o) => sum + o.totalPrice, 0);
+      .filter(o => o.paymentStatus === 'paid' || o.status === 'delivered')
+      .reduce((sum, o) => sum + (Number(o.totalPrice) || 0), 0);
 
-    const pendingOrdersCount = orders.filter(o => o.orderStatus === 'pending' || o.orderStatus === 'processing').length;
-    const deliveredOrdersCount = orders.filter(o => o.orderStatus === 'delivered').length;
+    const pendingOrdersCount = orders.filter(o => o.status === 'pending' || o.status === 'processing').length;
+    const deliveredOrdersCount = orders.filter(o => o.status === 'delivered').length;
 
     // Monthly sales simulation based on actual orders
     const monthlySales = [
@@ -34,11 +32,6 @@ export const getDashboardStats = async (req, res, next) => {
       { month: 'مرداد', sales: 145000000, orders: 35 },
       { month: 'شهریور', sales: 180000000, orders: 42 }
     ];
-
-    const categoryDistribution = categories.map(cat => ({
-      name: cat.name,
-      count: Math.floor(Math.random() * 20) + 5
-    }));
 
     return successResponse(res, 200, 'آمار و ارقام داشبورد مدیریت دریافت شد', {
       summary: {
@@ -51,7 +44,6 @@ export const getDashboardStats = async (req, res, next) => {
         totalReviews: reviews.length
       },
       monthlySales,
-      categoryDistribution,
       recentOrders: orders.slice(0, 5)
     });
   } catch (error) {
