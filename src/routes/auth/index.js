@@ -14,12 +14,13 @@ import {
 } from './validation.js';
 import { validateRequest } from '../../middlewares/validate.middleware.js';
 import { protect } from '../../middlewares/auth.middleware.js';
+import { authLimiter } from '../../middlewares/rateLimit.middleware.js';
 
 const router = Router();
 
-// Public routes
-router.post('/register', validateRequest(validateRegister), register);
-router.post('/login', validateRequest(validateLogin), login);
+// Public routes with rate limiting protection
+router.post('/register', authLimiter, validateRequest(validateRegister), register);
+router.post('/login', authLimiter, validateRequest(validateLogin), login);
 
 // Protected routes
 router.get('/me', protect, getMe);

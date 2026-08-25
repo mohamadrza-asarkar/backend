@@ -23,15 +23,14 @@ export const getDashboardStats = async (req, res, next) => {
     const pendingOrdersCount = orders.filter(o => o.status === 'pending' || o.status === 'processing').length;
     const deliveredOrdersCount = orders.filter(o => o.status === 'delivered').length;
 
-    // Monthly sales simulation based on actual orders
-    const monthlySales = [
-      { month: 'فروردین', sales: 45000000, orders: 12 },
-      { month: 'اردیبهشت', sales: 78000000, orders: 19 },
-      { month: 'خرداد', sales: 92000000, orders: 24 },
-      { month: 'تیر', sales: 110000000, orders: 28 },
-      { month: 'مرداد', sales: 145000000, orders: 35 },
-      { month: 'شهریور', sales: 180000000, orders: 42 }
-    ];
+    // Dynamically calculate sales per status or recent months from real orders
+    const statusBreakdown = {
+      pending: orders.filter(o => o.status === 'pending').length,
+      processing: orders.filter(o => o.status === 'processing').length,
+      shipped: orders.filter(o => o.status === 'shipped').length,
+      delivered: orders.filter(o => o.status === 'delivered').length,
+      cancelled: orders.filter(o => o.status === 'cancelled').length
+    };
 
     return successResponse(res, 200, 'آمار و ارقام داشبورد مدیریت دریافت شد', {
       summary: {
@@ -43,8 +42,8 @@ export const getDashboardStats = async (req, res, next) => {
         deliveredOrdersCount,
         totalReviews: reviews.length
       },
-      monthlySales,
-      recentOrders: orders.slice(0, 5)
+      statusBreakdown,
+      recentOrders: orders.slice(0, 10)
     });
   } catch (error) {
     next(error);

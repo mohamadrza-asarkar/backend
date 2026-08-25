@@ -1,4 +1,5 @@
 import { db } from '../../models/db.js';
+import { isDBConnected } from '../../config/database.js';
 import { generateToken, verifyToken } from '../../utils/jwt.js';
 import { hashPassword, comparePassword } from '../../utils/password.js';
 import { serverLogs } from '../../middlewares/logger.middleware.js';
@@ -474,10 +475,15 @@ export const getPostmanCollection = (req, res) => {
 export const getHealthCheck = (req, res) => {
   return res.json({
     status: 'online',
+    database: {
+      orm: 'Mongoose (MongoDB ODM)',
+      isConnected: isDBConnected(),
+      connectionState: isDBConnected() ? 'connected' : 'memory_fallback_active'
+    },
     uptime: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    server: 'Rice E-Commerce REST API (Node.js & Express)'
+    server: 'Rice E-Commerce REST API (Node.js & Express & Mongoose)'
   });
 };
 
@@ -489,6 +495,10 @@ export const getSystemMetrics = (req, res) => {
   const memoryUsage = process.memoryUsage();
   return res.json({
     uptimeSeconds: Math.round(process.uptime()),
+    database: {
+      orm: 'Mongoose',
+      isConnected: isDBConnected()
+    },
     memoryUsageMB: {
       rss: (memoryUsage.rss / 1024 / 1024).toFixed(1),
       heapTotal: (memoryUsage.heapTotal / 1024 / 1024).toFixed(1),
@@ -571,7 +581,7 @@ export const getRequestLogs = (req, res) => {
  * POST /api/docs/reset-db
  */
 export const resetDatabase = async (req, res) => {
-  const result = await db.resetToSeed();
+  const result = await db.clearAll();
   return res.json(result);
 };
 

@@ -34,7 +34,7 @@ export default defineConfig(() => {
         formats: ['es']
       },
       rollupOptions: {
-        external: ['express', 'cors', 'multer', 'bcryptjs', 'jsonwebtoken', 'dotenv', 'fs', 'path', 'url']
+        external: ['express', 'cors', 'multer', 'bcryptjs', 'jsonwebtoken', 'dotenv', 'fs', 'path', 'url', 'mongoose', 'express-rate-limit']
       }
     },
     server: {
