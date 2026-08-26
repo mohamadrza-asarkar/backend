@@ -430,6 +430,70 @@ export const getPostmanCollection = (req, res) => {
         ]
       },
       {
+        name: 'Authentication (Phone & Password)',
+        item: [
+          {
+            name: 'Register User (Phone & Password)',
+            request: {
+              method: 'POST',
+              header: [{ key: 'Content-Type', value: 'application/json' }],
+              body: {
+                mode: 'raw',
+                raw: JSON.stringify({
+                  name: 'علی محمدی',
+                  phone: '09123456789',
+                  password: 'password123',
+                  role: 'user'
+                }, null, 2)
+              },
+              url: { raw: '{{baseUrl}}/auth/register', host: ['{{baseUrl}}'], path: ['auth', 'register'] }
+            }
+          },
+          {
+            name: 'Login User (Phone & Password)',
+            request: {
+              method: 'POST',
+              header: [{ key: 'Content-Type', value: 'application/json' }],
+              body: {
+                mode: 'raw',
+                raw: JSON.stringify({
+                  phone: '09123456789',
+                  password: 'password123'
+                }, null, 2)
+              },
+              url: { raw: '{{baseUrl}}/auth/login', host: ['{{baseUrl}}'], path: ['auth', 'login'] }
+            }
+          },
+          {
+            name: 'Get Current Profile (Me)',
+            request: {
+              method: 'GET',
+              header: [{ key: 'Authorization', value: 'Bearer {{token}}' }],
+              url: { raw: '{{baseUrl}}/auth/me', host: ['{{baseUrl}}'], path: ['auth', 'me'] }
+            }
+          },
+          {
+            name: 'Update Profile',
+            request: {
+              method: 'PUT',
+              header: [
+                { key: 'Authorization', value: 'Bearer {{token}}' },
+                { key: 'Content-Type', value: 'application/json' }
+              ],
+              body: {
+                mode: 'raw',
+                raw: JSON.stringify({
+                  name: 'علی محمدی',
+                  phone: '09123456789',
+                  address: 'تهران، سعادت آباد'
+                }, null, 2)
+              },
+              url: { raw: '{{baseUrl}}/auth/profile', host: ['{{baseUrl}}'], path: ['auth', 'profile'] }
+            }
+          }
+        ]
+      },
+      {
         name: 'Reviews (Sender, Comment, Rating)',
         item: [
           {

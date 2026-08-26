@@ -1,21 +1,34 @@
 import { SlideModel } from '../../models/slide.js';
 import { successResponse, errorResponse } from '../../utils/response.js';
+import { formatImageUrl } from '../../utils/format.js';
+
+const prepareSlideResponse = (slide, req) => {
+  if (!slide) return slide;
+  const image = formatImageUrl(slide.image, req);
+  return {
+    ...slide,
+    image,
+    imageUrl: image,
+    fullImageUrl: image
+  };
+};
 
 /**
- * Get all slides
+ * Get all slides (Public)
  * GET /api/slides
  */
 export const getSlides = async (req, res, next) => {
   try {
     const slides = await SlideModel.find();
-    return successResponse(res, 200, 'اسلایدرها با موفقیت دریافت شدند', slides);
+    const formatted = slides.map(s => prepareSlideResponse(s, req));
+    return successResponse(res, 200, 'اسلایدرها با موفقیت دریافت شدند', formatted);
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Get slide by ID
+ * Get slide by ID (Public)
  * GET /api/slides/:id
  */
 export const getSlideById = async (req, res, next) => {
@@ -25,7 +38,7 @@ export const getSlideById = async (req, res, next) => {
     if (!slide) {
       return errorResponse(res, 404, 'اسلاید یافت نشد');
     }
-    return successResponse(res, 200, 'اسلاید با موفقیت دریافت شد', slide);
+    return successResponse(res, 200, 'اسلاید با موفقیت دریافت شد', prepareSlideResponse(slide, req));
   } catch (error) {
     next(error);
   }
@@ -51,7 +64,7 @@ export const createSlide = async (req, res, next) => {
     }
 
     const newSlide = await SlideModel.create({ image: imageUrl });
-    return successResponse(res, 201, 'اسلاید جدید با موفقیت ایجاد و تصویر ذخیره شد', newSlide);
+    return successResponse(res, 201, 'اسلاید جدید با موفقیت ایجاد و تصویر ذخیره شد', prepareSlideResponse(newSlide, req));
   } catch (error) {
     next(error);
   }
@@ -77,7 +90,7 @@ export const updateSlide = async (req, res, next) => {
       return errorResponse(res, 404, 'اسلاید یافت نشد');
     }
 
-    return successResponse(res, 200, 'اسلاید با موفقیت به‌روزرسانی شد', updated);
+    return successResponse(res, 200, 'اسلاید با موفقیت به‌روزرسانی شد', prepareSlideResponse(updated, req));
   } catch (error) {
     next(error);
   }

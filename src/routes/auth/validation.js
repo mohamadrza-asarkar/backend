@@ -1,25 +1,22 @@
 /**
  * Auth Request Validators
+ * اعتبارسنجی ورود و ثبت‌نام با شماره تلفن (موبایل ۱۱ رقمی) و کلمه عبور
  */
 
 export const validateRegister = (data = {}) => {
   const errors = {};
-  const { name, email, password, phone } = data;
+  const { name, phone, password } = data;
 
   if (!name || typeof name !== 'string' || name.trim().length < 2) {
     errors.name = 'نام و نام خانوادگی الزامی است (حداقل ۲ کاراکتر)';
   }
 
-  if (!email || typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email)) {
-    errors.email = 'فرمت ایمیل نامعتبر است';
+  if (!phone || typeof phone !== 'string' || !/^09\d{9}$/.test(phone.trim())) {
+    errors.phone = 'شماره موبایل الزامی است و باید ۱۱ رقمی با فرمت معتبر باشد (مثال: 09121234567)';
   }
 
   if (!password || typeof password !== 'string' || password.length < 6) {
     errors.password = 'رمز عبور باید حداقل ۶ کاراکتر باشد';
-  }
-
-  if (phone && !/^09\d{9}$/.test(phone)) {
-    errors.phone = 'شماره موبایل باید ۱۱ رقمی و با 09 شروع شود';
   }
 
   return {
@@ -30,13 +27,13 @@ export const validateRegister = (data = {}) => {
 
 export const validateLogin = (data = {}) => {
   const errors = {};
-  const { email, password } = data;
+  const { phone, password } = data;
 
-  if (!email || typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email)) {
-    errors.email = 'ایمیل معتبر الزامی است';
+  if (!phone || typeof phone !== 'string' || !/^09\d{9}$/.test(phone.trim())) {
+    errors.phone = 'شماره موبایل معتبر الزامی است (مثال: 09121234567)';
   }
 
-  if (!password || typeof password !== 'string') {
+  if (!password || typeof password !== 'string' || !password) {
     errors.password = 'رمز عبور الزامی است';
   }
 
@@ -54,7 +51,7 @@ export const validateUpdateProfile = (data = {}) => {
     errors.name = 'نام باید حداقل ۲ کاراکتر باشد';
   }
 
-  if (phone && !/^09\d{9}$/.test(phone)) {
+  if (phone && !/^09\d{9}$/.test(phone.trim())) {
     errors.phone = 'فرمت شماره همراه نامعتبر است (مثال: 09121234567)';
   }
 

@@ -6,21 +6,23 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Uploads directory inside public
-const uploadDir = path.join(__dirname, '../../public/uploads/slides');
+const baseUploadDir = path.join(__dirname, '../../public/uploads');
+const slidesUploadDir = path.join(baseUploadDir, 'slides');
+const productsUploadDir = path.join(baseUploadDir, 'products');
 
-// Ensure upload directory exists
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// Ensure upload directories exist
+[baseUploadDir, slidesUploadDir, productsUploadDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
-// Multer Storage Configuration
-const storage = multer.diskStorage({
+const slideStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    if (!fs.existsSync(slidesUploadDir)) {
+      fs.mkdirSync(slidesUploadDir, { recursive: true });
     }
-    cb(null, uploadDir);
+    cb(null, slidesUploadDir);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
@@ -29,7 +31,20 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter (images only)
+const productStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    if (!fs.existsSync(productsUploadDir)) {
+      fs.mkdirSync(productsUploadDir, { recursive: true });
+    }
+    cb(null, productsUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `product-${uniqueSuffix}${ext}`);
+  }
+});
+
 const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
   if (allowedMimeTypes.includes(file.mimetype) || file.mimetype.startsWith('image/')) {
@@ -39,11 +54,14 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Multer instance for slide image upload
 export const uploadSlide = multer({
-  storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB max
-  },
+  storage: slideStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter
+});
+
+export const uploadProduct = multer({
+  storage: productStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter
 });

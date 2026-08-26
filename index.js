@@ -17,7 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 // Trust reverse proxies
 app.set('trust proxy', 1);
@@ -33,8 +33,11 @@ app.use(requestLogger);
 // Rate Limiter
 app.use('/api', apiLimiter);
 
-// Static uploads folder for Multer
+// Static uploads and public asset folders (Publicly accessible without auth)
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+app.use('/public/uploads', express.static(path.join(__dirname, 'public/uploads')));
+app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Root Endpoint
 app.get('/', (req, res) => {

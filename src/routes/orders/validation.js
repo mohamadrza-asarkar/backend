@@ -1,6 +1,6 @@
 /**
  * Order Request Validators
- * اسکیما سفارش: محصولات (products)، نام و نام خانوادگی خریدار (buyerName)، آدرس (address) و شماره تلفن (phone)
+ * اسکیما سفارش: محصولات (products یا items)، نام و نام خانوادگی خریدار (buyerName)، آدرس (address) و شماره تلفن (phone)
  */
 
 export const validateCreateOrder = (data = {}) => {
@@ -22,8 +22,8 @@ export const validateCreateOrder = (data = {}) => {
     errors.phone = 'شماره تلفن همراه معتبر خریدار الزامی است (مانند: 09123456789)';
   }
 
-  if (products && (!Array.isArray(products) || products.length === 0)) {
-    errors.products = 'سفارش باید حداقل شامل یک محصول باشد';
+  if (products !== undefined && (!Array.isArray(products) || products.length === 0)) {
+    errors.products = 'لیست محصولات سفارش نمی‌تواند آرایه خالی باشد';
   }
 
   return {

@@ -1,5 +1,20 @@
 import { ProductModel } from '../../models/product.js';
 import { successResponse, errorResponse, paginateResponse } from '../../utils/response.js';
+import { formatImageUrl } from '../../utils/format.js';
+
+/**
+ * Format product object to include full server image URL
+ */
+const prepareProductResponse = (product, req) => {
+  if (!product) return product;
+  const image = formatImageUrl(product.image, req);
+  return {
+    ...product,
+    image,
+    imageUrl: image,
+    fullImageUrl: image
+  };
+};
 
 /**
  * دریافت لیست محصولات با قابلیت فیلتر، جستجو با کوئری، مرتب‌سازی و صفحه‌بندی
@@ -29,7 +44,9 @@ export const getProducts = async (req, res, next) => {
     const total = allProducts.length;
 
     const startIndex = (Number(page) - 1) * Number(limit);
-    const paginatedItems = allProducts.slice(startIndex, startIndex + Number(limit));
+    const paginatedItems = allProducts
+      .slice(startIndex, startIndex + Number(limit))
+      .map(p => prepareProductResponse(p, req));
 
     return paginateResponse(res, paginatedItems, page, limit, total, 'لیست محصولات برنج با موفقیت دریافت شد');
   } catch (error) {
@@ -63,7 +80,9 @@ export const searchProducts = async (req, res, next) => {
     const total = matchingProducts.length;
 
     const startIndex = (Number(page) - 1) * Number(limit);
-    const paginatedItems = matchingProducts.slice(startIndex, startIndex + Number(limit));
+    const paginatedItems = matchingProducts
+      .slice(startIndex, startIndex + Number(limit))
+      .map(p => prepareProductResponse(p, req));
 
     return successResponse(res, 200, `نتایج جستجو برای عبارت "${q}" با موفقیت دریافت شد`, {
       query: q,
@@ -90,7 +109,7 @@ export const getProductById = async (req, res, next) => {
       return errorResponse(res, 404, 'محصول مورد نظر یافت نشد');
     }
 
-    return successResponse(res, 200, 'اطلاعات محصول با موفقیت دریافت شد', product);
+    return successResponse(res, 200, 'اطلاعات محصول با موفقیت دریافت شد', prepareProductResponse(product, req));
   } catch (error) {
     next(error);
   }
@@ -102,10 +121,15 @@ export const getProductById = async (req, res, next) => {
  */
 export const createProduct = async (req, res, next) => {
   try {
-    const productData = req.body;
+    const productData = { ...req.body };
+
+    if (req.file) {
+      productData.image = `/uploads/products/${req.file.filename}`;
+    }
+
     const createdProduct = await ProductModel.create(productData);
 
-    return successResponse(res, 201, 'محصول برنج جدید با موفقیت ایجاد گردید', createdProduct);
+    return successResponse(res, 201, 'محصول برنج جدید با موفقیت ایجاد گردید', prepareProductResponse(createdProduct, req));
   } catch (error) {
     next(error);
   }
@@ -118,14 +142,18 @@ export const createProduct = async (req, res, next) => {
 export const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = { ...req.body };
+
+    if (req.file) {
+      updateData.image = `/uploads/products/${req.file.filename}`;
+    }
 
     const updated = await ProductModel.findByIdAndUpdate(id, updateData);
     if (!updated) {
       return errorResponse(res, 404, 'محصول مورد نظر جهت ویرایش یافت نشد');
     }
 
-    return successResponse(res, 200, 'محصول با موفقیت به‌روزرسانی شد', updated);
+    return successResponse(res, 200, 'محصول با موفقیت به‌روزرسانی شد', prepareProductResponse(updated, req));
   } catch (error) {
     next(error);
   }

@@ -4,31 +4,32 @@ import { generateToken } from '../../utils/jwt.js';
 import { successResponse, errorResponse } from '../../utils/response.js';
 
 /**
- * Register a new user
+ * Register a new user with Phone number & Password
  * POST /api/auth/register
  */
 export const register = async (req, res, next) => {
   try {
-    const { name, email, password, phone, role } = req.body;
+    const { name, phone, password, role, address } = req.body;
+    const cleanPhone = String(phone || '').trim();
 
-    const existingUser = await UserModel.findOne({ email });
+    const existingUser = await UserModel.findOne({ phone: cleanPhone });
     if (existingUser) {
-      return errorResponse(res, 400, 'این ایمیل قبلاً در سیستم ثبت نام کرده است');
+      return errorResponse(res, 400, 'این شماره موبایل قبلاً در سیستم ثبت نام کرده است');
     }
 
     const hashedPassword = await hashPassword(password);
 
     const newUser = await UserModel.create({
-      name,
-      email,
+      name: name.trim(),
+      phone: cleanPhone,
       password: hashedPassword,
-      phone: phone || '',
-      role: role === 'admin' ? 'admin' : 'user' // allow role selection or default to user
+      address: address || '',
+      role: role === 'admin' ? 'admin' : 'user'
     });
 
     const token = generateToken({
       id: newUser._id,
-      email: newUser.email,
+      phone: newUser.phone,
       role: newUser.role,
       name: newUser.name
     });
@@ -36,9 +37,9 @@ export const register = async (req, res, next) => {
     const userResponse = {
       _id: newUser._id,
       name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
       phone: newUser.phone,
+      role: newUser.role,
+      address: newUser.address,
       avatar: newUser.avatar,
       createdAt: newUser.createdAt
     };
@@ -53,16 +54,17 @@ export const register = async (req, res, next) => {
 };
 
 /**
- * Login existing user
+ * Login existing user with Phone number & Password
  * POST /api/auth/login
  */
 export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { phone, password } = req.body;
+    const cleanPhone = String(phone || '').trim();
 
-    const user = await UserModel.findOne({ email });
+    const user = await UserModel.findOne({ phone: cleanPhone });
     if (!user) {
-      return errorResponse(res, 401, 'ایمیل یا کلمه عبور اشتباه است');
+      return errorResponse(res, 401, 'شماره موبایل یا کلمه عبور اشتباه است');
     }
 
     if (user.isActive === false) {
@@ -71,12 +73,12 @@ export const login = async (req, res, next) => {
 
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) {
-      return errorResponse(res, 401, 'ایمیل یا کلمه عبور اشتباه است');
+      return errorResponse(res, 401, 'شماره موبایل یا کلمه عبور اشتباه است');
     }
 
     const token = generateToken({
       id: user._id,
-      email: user.email,
+      phone: user.phone,
       role: user.role,
       name: user.name
     });
@@ -84,9 +86,8 @@ export const login = async (req, res, next) => {
     const userResponse = {
       _id: user._id,
       name: user.name,
-      email: user.email,
-      role: user.role,
       phone: user.phone,
+      role: user.role,
       avatar: user.avatar,
       address: user.address,
       createdAt: user.createdAt
@@ -111,9 +112,8 @@ export const getMe = async (req, res, next) => {
     const userResponse = {
       _id: user._id,
       name: user.name,
-      email: user.email,
-      role: user.role,
       phone: user.phone,
+      role: user.role,
       avatar: user.avatar,
       address: user.address,
       isActive: user.isActive,
@@ -133,20 +133,31 @@ export const getMe = async (req, res, next) => {
 export const updateProfile = async (req, res, next) => {
   try {
     const { name, phone, avatar, address } = req.body;
-    const updated = await UserModel.findByIdAndUpdate(req.user._id, {
-      name: name || req.user.name,
-      phone: phone !== undefined ? phone : req.user.phone,
-      avatar: avatar || req.user.avatar,
-      address: address || req.user.address
-    });
+    const updateData = {};
+
+    if (name) updateData.name = name.trim();
+    if (avatar !== undefined) updateData.avatar = avatar;
+    if (address !== undefined) updateData.address = address;
+
+    if (phone) {
+      const cleanPhone = String(phone).trim();
+      if (cleanPhone !== req.user.phone) {
+        const existing = await UserModel.findOne({ phone: cleanPhone });
+        if (existing) {
+          return errorResponse(res, 400, 'این شماره موبایل توسط کاربر دیگری استفاده می‌شود');
+        }
+        updateData.phone = cleanPhone;
+      }
+    }
+
+    const updated = await UserModel.findByIdAndUpdate(req.user._id, updateData);
 
     return successResponse(res, 200, 'پروفایل کاربری با موفقیت به‌روزرسانی شد', {
       user: {
         _id: updated._id,
         name: updated.name,
-        email: updated.email,
-        role: updated.role,
         phone: updated.phone,
+        role: updated.role,
         avatar: updated.avatar,
         address: updated.address
       }

@@ -4,15 +4,21 @@ import { isDBConnected } from '../config/database.js';
 
 /**
  * User Mongoose Schema
+ * احراز هویت و مدیریت کاربران بر اساس شماره تماس (phone) و رمز عبور (password)
  */
 export const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  phone: { 
+    type: String, 
+    required: true, 
+    unique: true, 
+    trim: true,
+    index: true 
+  },
   password: { type: String, required: true },
   role: { type: String, enum: ['admin', 'user'], default: 'user' },
-  phone: { type: String, default: '' },
   address: { type: String, default: '' },
-  avatar: { type: String },
+  avatar: { type: String, default: '' },
   isActive: { type: Boolean, default: true }
 }, {
   timestamps: true,
@@ -34,8 +40,8 @@ export const UserModel = {
     if (query.role) {
       result = result.filter(u => u.role === query.role);
     }
-    if (query.email) {
-      result = result.filter(u => u.email.toLowerCase() === query.email.toLowerCase());
+    if (query.phone) {
+      result = result.filter(u => u.phone === query.phone);
     }
     return result;
   },
@@ -47,8 +53,8 @@ export const UserModel = {
     if (query._id) {
       return db.users.find(u => u._id === query._id) || null;
     }
-    if (query.email) {
-      return db.users.find(u => u.email.toLowerCase() === query.email.toLowerCase()) || null;
+    if (query.phone) {
+      return db.users.find(u => u.phone === query.phone) || null;
     }
     return null;
   },
@@ -61,17 +67,20 @@ export const UserModel = {
   },
 
   create: async (userData) => {
+    const formattedPhone = String(userData.phone || '').trim();
     if (isDBConnected()) {
-      const user = await User.create(userData);
+      const user = await User.create({
+        ...userData,
+        phone: formattedPhone
+      });
       return user.toObject();
     }
     const newUser = {
       _id: userData._id || db.generateId(),
       name: userData.name,
-      email: userData.email.toLowerCase(),
+      phone: formattedPhone,
       password: userData.password,
       role: userData.role || 'user',
-      phone: userData.phone || '',
       avatar: userData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=random`,
       address: userData.address || '',
       isActive: userData.isActive !== undefined ? userData.isActive : true,

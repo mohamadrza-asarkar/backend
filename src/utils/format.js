@@ -1,5 +1,5 @@
 /**
- * Format utilities for currency, numbers, and dates
+ * Format utilities for currency, numbers, dates, and server image URLs
  */
 
 export const formatPrice = (price) => {
@@ -26,4 +26,21 @@ export const formatDate = (dateStr) => {
   } catch {
     return dateStr;
   }
+};
+
+/**
+ * Format image path to full server URL accessible by frontend
+ */
+export const formatImageUrl = (imagePath, req) => {
+  if (!imagePath) return '';
+  if (typeof imagePath !== 'string') return imagePath;
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+  if (req && req.headers && req.headers.host) {
+    const protocol = req.protocol || 'http';
+    return `${protocol}://${req.headers.host}${cleanPath}`;
+  }
+  return cleanPath;
 };

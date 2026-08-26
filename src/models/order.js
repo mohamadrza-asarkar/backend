@@ -4,20 +4,21 @@ import { isDBConnected } from '../config/database.js';
 
 /**
  * Order Product Sub-Schema
+ * هر آیتم سفارش شامل مشخصات محصول (productId, name, price, quantity, image, product) است
  */
 export const orderProductSchema = new mongoose.Schema({
   productId: { type: String, required: true },
   name: { type: String, required: true },
   price: { type: Number, required: true },
   quantity: { type: Number, required: true, default: 1 },
-  image: { type: String }
-}, { _id: false });
+  image: { type: String, default: '' },
+  product: { type: mongoose.Schema.Types.Mixed }
+}, { _id: false, strict: false });
 
 /**
  * Order Mongoose Schema
- * مدل سفارش
- * شامل: محصولات (products)، نام و نام خانوادگی خریدار (buyerName)،
- * آدرس (address) و شماره تلفن خریدار (phone)
+ * مدل سفارش:
+ * هر سفارش حتماً شامل یک یا چند محصول (products/items)، مشخصات خریدار (buyerName, address, phone) و مبلغ کل (totalPrice) است.
  */
 export const orderSchema = new mongoose.Schema({
   orderNumber: { type: String, default: () => `ORD-${Math.floor(10000 + Math.random() * 90000)}` },
@@ -26,6 +27,7 @@ export const orderSchema = new mongoose.Schema({
   address: { type: String, required: true },
   phone: { type: String, required: true },
   products: [orderProductSchema],
+  items: [orderProductSchema],
   totalPrice: { type: Number, required: true, default: 0 },
   status: {
     type: String,
@@ -34,11 +36,13 @@ export const orderSchema = new mongoose.Schema({
   },
   paymentMethod: { type: String, default: 'online' },
   paymentStatus: { type: String, default: 'pending' },
-  trackingCode: { type: String, default: () => `TRK-${Math.floor(10000000 + Math.random() * 90000000)}` }
+  trackingCode: { type: String, default: () => `TRK-${Math.floor(10000000 + Math.random() * 90000000)}` },
+  notes: { type: String, default: '' }
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  toObject: { virtuals: true },
+  strict: false
 });
 
 export const Order = mongoose.models.Order || mongoose.model('Order', orderSchema);
@@ -53,7 +57,12 @@ export const OrderModel = {
       if (query.userId) mongoQuery.userId = query.userId;
       if (query.status || query.orderStatus) mongoQuery.status = query.status || query.orderStatus;
       if (query.phone) mongoQuery.phone = query.phone;
-      return await Order.find(mongoQuery).sort({ createdAt: -1 }).lean();
+      const list = await Order.find(mongoQuery).sort({ createdAt: -1 }).lean();
+      return list.map(o => ({
+        ...o,
+        products: o.products && o.products.length > 0 ? o.products : (o.items || []),
+        items: o.items && o.items.length > 0 ? o.items : (o.products || [])
+      }));
     }
 
     let list = [...db.orders];
@@ -68,30 +77,48 @@ export const OrderModel = {
       list = list.filter(o => o.phone === query.phone);
     }
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return list;
+    return list.map(o => ({
+      ...o,
+      products: o.products && o.products.length > 0 ? o.products : (o.items || []),
+      items: o.items && o.items.length > 0 ? o.items : (o.products || [])
+    }));
   },
 
   findById: async (id) => {
     if (isDBConnected()) {
+      let order = null;
       if (mongoose.isValidObjectId(id)) {
-        const byId = await Order.findById(id).lean();
-        if (byId) return byId;
+        order = await Order.findById(id).lean();
       }
-      return await Order.findOne({ $or: [{ _id: id }, { orderNumber: id }] }).lean();
+      if (!order) {
+        order = await Order.findOne({ $or: [{ _id: id }, { orderNumber: id }] }).lean();
+      }
+      if (!order) return null;
+      return {
+        ...order,
+        products: order.products && order.products.length > 0 ? order.products : (order.items || []),
+        items: order.items && order.items.length > 0 ? order.items : (order.products || [])
+      };
     }
-    return db.orders.find(o => o._id === id || o.orderNumber === id) || null;
+    const order = db.orders.find(o => o._id === id || o.orderNumber === id) || null;
+    if (!order) return null;
+    return {
+      ...order,
+      products: order.products && order.products.length > 0 ? order.products : (order.items || []),
+      items: order.items && order.items.length > 0 ? order.items : (order.products || [])
+    };
   },
 
   create: async (data) => {
     const randomNum = Math.floor(10000 + Math.random() * 90000);
-    const products = data.products || data.items || [];
+    const rawProducts = data.products || data.items || [];
     const buyerName = data.buyerName || (data.shippingAddress && data.shippingAddress.fullName) || data.userName || 'خریدار';
     const address = data.address || (data.shippingAddress ? (typeof data.shippingAddress === 'string' ? data.shippingAddress : (data.shippingAddress.addressLine || `${data.shippingAddress.province || ''} ${data.shippingAddress.city || ''} ${data.shippingAddress.addressLine || ''}`)) : 'ثبت نشده');
     const phone = data.phone || (data.shippingAddress && data.shippingAddress.phone) || '';
 
     const totalPrice = data.totalPrice !== undefined 
       ? Number(data.totalPrice) 
-      : products.reduce((acc, item) => acc + (Number(item.price || 0) * (Number(item.quantity) || 1)), 0);
+      : rawProducts.reduce((acc, item) => acc + (Number(item.price || 0) * (Number(item.quantity) || 1)), 0);
 
     if (isDBConnected()) {
       const created = await Order.create({
@@ -100,22 +127,29 @@ export const OrderModel = {
         buyerName,
         address,
         phone,
-        products,
+        products: rawProducts,
+        items: rawProducts,
         totalPrice,
         status: data.status || data.orderStatus || 'pending',
         paymentMethod: data.paymentMethod || 'online',
         paymentStatus: data.paymentStatus || 'pending',
-        trackingCode: data.trackingCode || `TRK-${Math.floor(10000000 + Math.random() * 90000000)}`
+        trackingCode: data.trackingCode || `TRK-${Math.floor(10000000 + Math.random() * 90000000)}`,
+        notes: data.notes || ''
       });
-      return created.toObject();
+      const obj = created.toObject();
+      return {
+        ...obj,
+        products: rawProducts,
+        items: rawProducts
+      };
     }
 
     const newOrder = {
       _id: data._id || db.generateId(),
       orderNumber: data.orderNumber || `ORD-${randomNum}`,
       userId: data.userId || 'guest-user',
-      products: products,
-      items: products,
+      products: rawProducts,
+      items: rawProducts,
       buyerName: buyerName,
       address: address,
       phone: phone,
@@ -124,6 +158,7 @@ export const OrderModel = {
       paymentMethod: data.paymentMethod || 'online',
       paymentStatus: data.paymentStatus || 'pending',
       trackingCode: data.trackingCode || `TRK-${Math.floor(10000000 + Math.random() * 90000000)}`,
+      notes: data.notes || '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -134,11 +169,19 @@ export const OrderModel = {
 
   findByIdAndUpdate: async (id, updateData) => {
     if (isDBConnected()) {
+      let updated = null;
       if (mongoose.isValidObjectId(id)) {
-        const updated = await Order.findByIdAndUpdate(id, updateData, { new: true }).lean();
-        if (updated) return updated;
+        updated = await Order.findByIdAndUpdate(id, updateData, { new: true }).lean();
       }
-      return await Order.findOneAndUpdate({ $or: [{ _id: id }, { orderNumber: id }] }, updateData, { new: true }).lean();
+      if (!updated) {
+        updated = await Order.findOneAndUpdate({ $or: [{ _id: id }, { orderNumber: id }] }, updateData, { new: true }).lean();
+      }
+      if (!updated) return null;
+      return {
+        ...updated,
+        products: updated.products && updated.products.length > 0 ? updated.products : (updated.items || []),
+        items: updated.items && updated.items.length > 0 ? updated.items : (updated.products || [])
+      };
     }
 
     const index = db.orders.findIndex(o => o._id === id || o.orderNumber === id);
@@ -149,7 +192,11 @@ export const OrderModel = {
       ...updateData,
       updatedAt: new Date().toISOString()
     };
-    return db.orders[index];
+    return {
+      ...db.orders[index],
+      products: db.orders[index].products && db.orders[index].products.length > 0 ? db.orders[index].products : (db.orders[index].items || []),
+      items: db.orders[index].items && db.orders[index].items.length > 0 ? db.orders[index].items : (db.orders[index].products || [])
+    };
   },
 
   findByIdAndDelete: async (id) => {
