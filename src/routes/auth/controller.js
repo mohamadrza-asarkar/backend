@@ -24,7 +24,7 @@ export const register = async (req, res, next) => {
       phone: cleanPhone,
       password: hashedPassword,
       address: address || '',
-      role: role === 'admin' ? 'admin' : 'user'
+      role: 'user' // Hardcoded to 'user' for maximum security. Admins must be set manually.
     });
 
     const token = generateToken({
