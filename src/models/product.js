@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { db } from './db.js';
 import { isDBConnected } from '../config/database.js';
+import { saveBase64Image } from '../utils/format.js';
 
 /**
  * Review Sub-Schema for Product
@@ -15,13 +16,19 @@ export const reviewSubSchema = new mongoose.Schema({
 
 /**
  * Product Mongoose Schema
- * مدل محصول (برنج، نیم دانه برنج، ریز دانه برنج)
- * شامل: اسم (name)، توضیحات (description)، قیمت (price)، وضعیت موجودی (isAvailable) و نظرات (reviews)
+ * مدل محصول (برنج، نیم دانه برنج، ریز دانه برنج و محصولات شگفت‌انگیز)
+ * شامل: اسم (name)، توضیحات (description)، قیمت (price)، قیمت اصلی (originalPrice)،
+ * درصد تخفیف (discountPercent)، وضعیت شگفت‌انگیز (isAmazing)، زمان انقضا (amazingExpiresAt)،
+ * وضعیت موجودی (isAvailable)، مسیر تصویر ذخیره شده روی سرور (image) و نظرات (reviews)
  */
 export const productSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   description: { type: String, default: '' },
   price: { type: Number, required: true, min: 0 },
+  originalPrice: { type: Number, default: 0, min: 0 },
+  discountPercent: { type: Number, default: 0, min: 0, max: 100 },
+  isAmazing: { type: Boolean, default: false },
+  amazingExpiresAt: { type: Date, default: null },
   isAvailable: { type: Boolean, default: true },
   countInStock: { type: Number, default: 0, min: 0 },
   image: { type: String, default: '' },
@@ -34,8 +41,42 @@ export const productSchema = new mongoose.Schema({
 
 // Text index for search
 productSchema.index({ name: 'text', description: 'text' });
+productSchema.index({ isAmazing: 1 });
 
 export const Product = mongoose.models.Product || mongoose.model('Product', productSchema);
+
+/**
+ * Helper to normalize, compute amazing offer prices, and convert Base64 payloads into files on disk
+ */
+const normalizeProductData = (data) => {
+  const normalized = { ...data };
+
+  // Calculate discount and prices if originalPrice or discountPercent are provided
+  if (normalized.originalPrice !== undefined && Number(normalized.originalPrice) > 0) {
+    const orig = Number(normalized.originalPrice);
+    if (normalized.discountPercent !== undefined && Number(normalized.discountPercent) > 0 && normalized.price === undefined) {
+      normalized.price = Math.max(0, orig - Math.round((orig * Number(normalized.discountPercent)) / 100));
+    } else if (normalized.price !== undefined && orig > Number(normalized.price) && normalized.discountPercent === undefined) {
+      normalized.discountPercent = Math.round(((orig - Number(normalized.price)) / orig) * 100);
+    }
+  }
+
+  // Intercept Base64 images and save to disk instead of database
+  const imgInput = normalized.imageBase64 || normalized.image;
+  if (imgInput && typeof imgInput === 'string' && (imgInput.startsWith('data:') || (imgInput.length > 100 && !imgInput.startsWith('http') && !imgInput.startsWith('/')))) {
+    const savedPath = saveBase64Image(imgInput, 'products', normalized.name);
+    if (savedPath) {
+      normalized.image = savedPath;
+    }
+  }
+
+  // Ensure raw Base64 is not saved in the database
+  if (normalized.imageBase64) {
+    delete normalized.imageBase64;
+  }
+
+  return normalized;
+};
 
 /**
  * ProductModel Adapter
@@ -57,6 +98,10 @@ export const ProductModel = {
         mongoQuery.isAvailable = filter.isAvailable === 'true' || filter.isAvailable === true;
       }
 
+      if (filter.isAmazing !== undefined) {
+        mongoQuery.isAmazing = filter.isAmazing === 'true' || filter.isAmazing === true;
+      }
+
       if (filter.minPrice !== undefined || filter.maxPrice !== undefined) {
         mongoQuery.price = {};
         if (filter.minPrice !== undefined && !isNaN(Number(filter.minPrice))) {
@@ -74,6 +119,8 @@ export const ProductModel = {
           query = query.sort({ price: 1 });
         } else if (filter.sortBy === 'price-desc' || filter.sortBy === 'expensive') {
           query = query.sort({ price: -1 });
+        } else if (filter.sortBy === 'discount' || filter.sortBy === 'most-discount') {
+          query = query.sort({ discountPercent: -1 });
         } else if (filter.sortBy === 'newest') {
           query = query.sort({ createdAt: -1 });
         }
@@ -101,6 +148,11 @@ export const ProductModel = {
       list = list.filter(p => Boolean(p.isAvailable) === isAvail);
     }
 
+    if (filter.isAmazing !== undefined) {
+      const isAmz = filter.isAmazing === 'true' || filter.isAmazing === true;
+      list = list.filter(p => Boolean(p.isAmazing) === isAmz);
+    }
+
     if (filter.minPrice !== undefined && !isNaN(Number(filter.minPrice))) {
       list = list.filter(p => p.price >= Number(filter.minPrice));
     }
@@ -115,6 +167,10 @@ export const ProductModel = {
         name: prod.name,
         description: prod.description || '',
         price: Number(prod.price) || 0,
+        originalPrice: Number(prod.originalPrice) || 0,
+        discountPercent: Number(prod.discountPercent) || 0,
+        isAmazing: Boolean(prod.isAmazing),
+        amazingExpiresAt: prod.amazingExpiresAt || null,
         isAvailable: prod.isAvailable !== undefined ? Boolean(prod.isAvailable) : (Number(prod.countInStock) > 0),
         countInStock: prod.countInStock !== undefined ? Number(prod.countInStock) : 0,
         image: prod.image || '',
@@ -129,6 +185,8 @@ export const ProductModel = {
         list.sort((a, b) => a.price - b.price);
       } else if (filter.sortBy === 'price-desc' || filter.sortBy === 'expensive') {
         list.sort((a, b) => b.price - a.price);
+      } else if (filter.sortBy === 'discount' || filter.sortBy === 'most-discount') {
+        list.sort((a, b) => (b.discountPercent || 0) - (a.discountPercent || 0));
       } else if (filter.sortBy === 'newest') {
         list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       }
@@ -150,6 +208,10 @@ export const ProductModel = {
       name: prod.name,
       description: prod.description || '',
       price: Number(prod.price) || 0,
+      originalPrice: Number(prod.originalPrice) || 0,
+      discountPercent: Number(prod.discountPercent) || 0,
+      isAmazing: Boolean(prod.isAmazing),
+      amazingExpiresAt: prod.amazingExpiresAt || null,
       isAvailable: prod.isAvailable !== undefined ? Boolean(prod.isAvailable) : (Number(prod.countInStock) > 0),
       countInStock: prod.countInStock !== undefined ? Number(prod.countInStock) : 0,
       image: prod.image || '',
@@ -160,24 +222,31 @@ export const ProductModel = {
   },
 
   create: async (data) => {
+    const preparedData = normalizeProductData(data);
+
     if (isDBConnected()) {
-      const created = await Product.create(data);
+      const created = await Product.create(preparedData);
       return created.toObject();
     }
-    const productName = data.name || 'محصول برنج';
-    const isAvailable = data.isAvailable !== undefined 
-      ? Boolean(data.isAvailable) 
-      : (data.countInStock !== undefined ? Number(data.countInStock) > 0 : true);
+
+    const productName = preparedData.name || 'محصول برنج';
+    const isAvailable = preparedData.isAvailable !== undefined 
+      ? Boolean(preparedData.isAvailable) 
+      : (preparedData.countInStock !== undefined ? Number(preparedData.countInStock) > 0 : true);
 
     const newProduct = {
-      _id: data._id || db.generateId(),
+      _id: preparedData._id || db.generateId(),
       name: productName,
-      description: data.description || '',
-      price: Number(data.price) || 0,
+      description: preparedData.description || '',
+      price: Number(preparedData.price) || 0,
+      originalPrice: Number(preparedData.originalPrice) || 0,
+      discountPercent: Number(preparedData.discountPercent) || 0,
+      isAmazing: Boolean(preparedData.isAmazing),
+      amazingExpiresAt: preparedData.amazingExpiresAt || null,
       isAvailable: isAvailable,
-      countInStock: Number(data.countInStock) || 0,
-      image: data.image || '',
-      reviews: data.reviews || [],
+      countInStock: Number(preparedData.countInStock) || 0,
+      image: preparedData.image || '',
+      reviews: preparedData.reviews || [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -187,24 +256,26 @@ export const ProductModel = {
   },
 
   findByIdAndUpdate: async (id, updateData) => {
+    const preparedUpdate = normalizeProductData(updateData);
+
     if (isDBConnected()) {
-      return await Product.findByIdAndUpdate(id, updateData, { new: true, runValidators: true }).lean();
+      return await Product.findByIdAndUpdate(id, preparedUpdate, { new: true, runValidators: true }).lean();
     }
     const index = db.products.findIndex(p => p._id === id);
     if (index === -1) return null;
 
     const current = db.products[index];
-    const updatedName = updateData.name || current.name;
-    const isAvailable = updateData.isAvailable !== undefined 
-      ? Boolean(updateData.isAvailable) 
-      : (updateData.countInStock !== undefined ? Number(updateData.countInStock) > 0 : current.isAvailable);
+    const updatedName = preparedUpdate.name || current.name;
+    const isAvailable = preparedUpdate.isAvailable !== undefined 
+      ? Boolean(preparedUpdate.isAvailable) 
+      : (preparedUpdate.countInStock !== undefined ? Number(preparedUpdate.countInStock) > 0 : current.isAvailable);
 
     db.products[index] = {
       ...current,
-      ...updateData,
+      ...preparedUpdate,
       name: updatedName,
       isAvailable: isAvailable,
-      countInStock: updateData.countInStock !== undefined ? Number(updateData.countInStock) : current.countInStock,
+      countInStock: preparedUpdate.countInStock !== undefined ? Number(preparedUpdate.countInStock) : current.countInStock,
       updatedAt: new Date().toISOString()
     };
 

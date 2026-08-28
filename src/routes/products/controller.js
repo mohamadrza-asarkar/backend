@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { ProductModel } from '../../models/product.js';
 import { successResponse, errorResponse, paginateResponse } from '../../utils/response.js';
 import { formatImageUrl } from '../../utils/format.js';
@@ -16,6 +17,7 @@ const prepareProductResponse = (product, req) => {
   };
 };
 
+
 /**
  * دریافت لیست محصولات با قابلیت فیلتر، جستجو با کوئری، مرتب‌سازی و صفحه‌بندی
  * GET /api/products
@@ -28,6 +30,7 @@ export const getProducts = async (req, res, next) => {
       search,
       q,
       isAvailable,
+      isAmazing,
       minPrice,
       maxPrice,
       sortBy = 'newest'
@@ -36,6 +39,7 @@ export const getProducts = async (req, res, next) => {
     const filter = {};
     if (search || q) filter.search = search || q;
     if (isAvailable !== undefined) filter.isAvailable = isAvailable;
+    if (isAmazing !== undefined) filter.isAmazing = isAmazing;
     if (minPrice !== undefined) filter.minPrice = Number(minPrice);
     if (maxPrice !== undefined) filter.maxPrice = Number(maxPrice);
     if (sortBy) filter.sortBy = sortBy;
@@ -55,6 +59,36 @@ export const getProducts = async (req, res, next) => {
 };
 
 /**
+ * دریافت لیست محصولات شگفت‌انگیز (پیشنهادهای ویژه برنج)
+ * GET /api/products/amazing
+ */
+export const getAmazingProducts = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, sortBy = 'discount' } = req.query;
+
+    const allAmazing = await ProductModel.find({
+      isAmazing: true,
+      sortBy: sortBy
+    });
+
+    const total = allAmazing.length;
+    const startIndex = (Number(page) - 1) * Number(limit);
+    const paginatedItems = allAmazing
+      .slice(startIndex, startIndex + Number(limit))
+      .map(p => prepareProductResponse(p, req));
+
+    return successResponse(res, 200, 'لیست محصولات شگفت‌انگیز با موفقیت دریافت شد', {
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      products: paginatedItems
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * جستجوی پیشرفته محصولات با کوئری
  * GET /api/products/search?q=...&minPrice=...&maxPrice=...&isAvailable=...
  */
@@ -63,6 +97,7 @@ export const searchProducts = async (req, res, next) => {
     const {
       q = '',
       isAvailable,
+      isAmazing,
       minPrice,
       maxPrice,
       sortBy = 'newest',
@@ -72,6 +107,7 @@ export const searchProducts = async (req, res, next) => {
 
     const filter = { search: q };
     if (isAvailable !== undefined) filter.isAvailable = isAvailable;
+    if (isAmazing !== undefined) filter.isAmazing = isAmazing;
     if (minPrice !== undefined) filter.minPrice = Number(minPrice);
     if (maxPrice !== undefined) filter.maxPrice = Number(maxPrice);
     if (sortBy) filter.sortBy = sortBy;
@@ -117,19 +153,38 @@ export const getProductById = async (req, res, next) => {
 
 /**
  * ایجاد محصول جدید (مخصوص مدیر / Admin)
+ * ذخیره‌سازی عکس به صورت فایل در هاست و ثبت مسیر در دیتابیس
+ * و نشان‌گذاری به عنوان محصول شگفت‌انگیز (isAmazing)
  * POST /api/products
  */
 export const createProduct = async (req, res, next) => {
   try {
     const productData = { ...req.body };
 
+    // If file uploaded via Multer, use its path.
     if (req.file) {
       productData.image = `/uploads/products/${req.file.filename}`;
     }
 
+    // Process amazing offer flags
+    if (productData.isAmazing !== undefined) {
+      productData.isAmazing = productData.isAmazing === 'true' || productData.isAmazing === true;
+    }
+
+    if (productData.originalPrice !== undefined) {
+      productData.originalPrice = Number(productData.originalPrice);
+    }
+    if (productData.discountPercent !== undefined) {
+      productData.discountPercent = Number(productData.discountPercent);
+    }
+
     const createdProduct = await ProductModel.create(productData);
 
-    return successResponse(res, 201, 'محصول برنج جدید با موفقیت ایجاد گردید', prepareProductResponse(createdProduct, req));
+    const message = createdProduct.isAmazing 
+      ? 'محصول شگفت‌انگیز با موفقیت ثبت و تصویر در هاست ذخیره شد'
+      : 'محصول برنج جدید با موفقیت ایجاد و تصویر در هاست ذخیره شد';
+
+    return successResponse(res, 201, message, prepareProductResponse(createdProduct, req));
   } catch (error) {
     next(error);
   }
@@ -144,8 +199,19 @@ export const updateProduct = async (req, res, next) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
+    // If file uploaded via Multer, use its path
     if (req.file) {
       updateData.image = `/uploads/products/${req.file.filename}`;
+    }
+
+    if (updateData.isAmazing !== undefined) {
+      updateData.isAmazing = updateData.isAmazing === 'true' || updateData.isAmazing === true;
+    }
+    if (updateData.originalPrice !== undefined) {
+      updateData.originalPrice = Number(updateData.originalPrice);
+    }
+    if (updateData.discountPercent !== undefined) {
+      updateData.discountPercent = Number(updateData.discountPercent);
     }
 
     const updated = await ProductModel.findByIdAndUpdate(id, updateData);

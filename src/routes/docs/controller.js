@@ -62,9 +62,14 @@ export const getOpenApiSpec = (req, res) => {
             name: { type: 'string', example: 'برنج طارم هاشمی درجه یک گیلان (کیسه ۱۰ کیلوگرمی)' },
             description: { type: 'string', example: 'برنج اعلا و ممتاز طارم هاشمی کشت اول گیلان' },
             price: { type: 'number', example: 1350000 },
+            originalPrice: { type: 'number', example: 1700000, description: 'قیمت اولیه قبل از تخفیف شگفت انگیز' },
+            discountPercent: { type: 'number', example: 20, description: 'درصد تخفیف پیشنهاد شگفت انگیز' },
+            isAmazing: { type: 'boolean', example: true, description: 'آیا محصول شگفت‌انگیز است' },
+            amazingExpiresAt: { type: 'string', format: 'date-time', description: 'تاریخ و ساعت پایان پیشنهاد شگفت‌انگیز' },
             isAvailable: { type: 'boolean', example: true },
             countInStock: { type: 'number', example: 45 },
-            image: { type: 'string', example: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800&q=80' },
+            image: { type: 'string', description: 'تصویر ذخیره شده به صورت Base64 یا آدرس فایل/سرور', example: 'data:image/jpeg;base64,...' },
+            imageBase64: { type: 'string', description: 'کد کامل تصویر Base64', example: 'data:image/jpeg;base64,...' },
             reviews: { type: 'array', items: { $ref: '#/components/schemas/Review' } }
           }
         },
@@ -162,6 +167,34 @@ export const getOpenApiSpec = (req, res) => {
             { name: 'sortBy', in: 'query', schema: { type: 'string' } }
           ],
           responses: { 200: { description: 'نتایج جستجو' } }
+        }
+      },
+      '/amazing-products': {
+        get: {
+          tags: ['Amazing Products'],
+          summary: 'دریافت لیست محصولات شگفت‌انگیز (عکس‌ها به صورت Base64 در دیتابیس)',
+          parameters: [
+            { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+            { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+            { name: 'sortBy', in: 'query', schema: { type: 'string', enum: ['discount', 'newest', 'cheapest'] } }
+          ],
+          responses: { 200: { description: 'لیست محصولات شگفت‌انگیز' } }
+        },
+        post: {
+          tags: ['Amazing Products'],
+          summary: 'ثبت محصول شگفت‌انگیز جدید با عکس Base64 (Admin)',
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/Product'
+                }
+              }
+            }
+          },
+          responses: { 201: { description: 'محصول شگفت‌انگیز ایجاد شد' } }
         }
       },
       '/slides': {

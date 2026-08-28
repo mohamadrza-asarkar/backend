@@ -25,9 +25,9 @@ app.set('trust proxy', 1);
 // CORS - تمامی دامنه‌ها، متدها و هدرها کاملاً آزاد هستند
 app.use(cors());
 
-// Body Parsers
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body Parsers (Increased to 50mb to support large Base64 image uploads in JSON)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(requestLogger);
 
 // Rate Limiter
@@ -38,37 +38,6 @@ app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 app.use('/public/uploads', express.static(path.join(__dirname, 'public/uploads')));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Root Endpoint
-app.get('/', (req, res) => {
-  res.json({
-    name: 'فروشگاه برنج، نیم دانه و ریز دانه برنج (REST API)',
-    database: {
-      orm: 'Mongoose (ODM for MongoDB)',
-      isConnected: isDBConnected(),
-      mongoUri: process.env.MONGODB_URI ? 'Configured' : 'mongodb://localhost:27017/rice_store'
-    },
-    rateLimiting: 'Enabled (200 req/15min API, 25 req/15min Auth)',
-    status: 'online',
-    version: '1.0.0',
-    cors: 'All domains allowed (*)',
-    documentation: {
-      openapi: '/api/docs/openapi.json',
-      postman: '/api/docs/postman.json',
-      health: '/api/health'
-    },
-    endpoints: {
-      slides: '/api/slides',
-      products: '/api/products',
-      search: '/api/products/search?q=هاشمی',
-      cart: '/api/cart',
-      orders: '/api/orders',
-      reviews: '/api/reviews',
-      auth: '/api/auth',
-      admin: '/api/admin'
-    }
-  });
-});
 
 // نقطه اتصال روتر اصلی به برنامه
 app.use('/api', apiRouter);

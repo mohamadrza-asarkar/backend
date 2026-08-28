@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getProducts,
+  getAmazingProducts,
   searchProducts,
   getProductById,
   createProduct,
@@ -16,6 +17,7 @@ const router = Router();
 
 // Public product routes (Publicly accessible without auth)
 router.get('/', getProducts);
+router.get('/amazing', getAmazingProducts);
 router.get('/search', searchProducts);
 router.get('/:id', getProductById);
 

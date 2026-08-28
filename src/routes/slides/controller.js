@@ -45,26 +45,26 @@ export const getSlideById = async (req, res, next) => {
 };
 
 /**
- * Create slide (با آپلود فایل مالتر یا آدرس تصویر)
+ * Create slide (با آپلود فایل مالتر، Base64 یا آدرس تصویر)
+ * ذخیره فیزیکی روی دیسک به عنوان فایل تصویری (نه به صورت متن طولانی در دیتابیس)
  * POST /api/slides
  */
 export const createSlide = async (req, res, next) => {
   try {
     let imageUrl = '';
 
-    // If uploaded via Multer
     if (req.file) {
       imageUrl = `/uploads/slides/${req.file.filename}`;
-    } else if (req.body && req.body.image) {
-      imageUrl = req.body.image;
+    } else if (req.body) {
+      imageUrl = req.body.image || req.body.imageBase64 || '';
     }
 
     if (!imageUrl) {
-      return errorResponse(res, 400, 'تصویر اسلاید الزامی است (از طریق فیلد image در فرم یا مالتر)');
+      return errorResponse(res, 400, 'تصویر اسلاید الزامی است (از طریق فیلد image در فرم، مالتر یا کد Base64)');
     }
 
     const newSlide = await SlideModel.create({ image: imageUrl });
-    return successResponse(res, 201, 'اسلاید جدید با موفقیت ایجاد و تصویر ذخیره شد', prepareSlideResponse(newSlide, req));
+    return successResponse(res, 201, 'اسلاید جدید با موفقیت ایجاد و تصویر روی دیسک ذخیره شد', prepareSlideResponse(newSlide, req));
   } catch (error) {
     next(error);
   }
@@ -81,8 +81,11 @@ export const updateSlide = async (req, res, next) => {
 
     if (req.file) {
       updateData.image = `/uploads/slides/${req.file.filename}`;
-    } else if (req.body && req.body.image) {
-      updateData.image = req.body.image;
+    } else if (req.body) {
+      const img = req.body.image || req.body.imageBase64;
+      if (img !== undefined) {
+        updateData.image = img;
+      }
     }
 
     const updated = await SlideModel.findByIdAndUpdate(id, updateData);

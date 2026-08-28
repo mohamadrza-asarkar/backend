@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import authRoutes from './auth/index.js';
 import productRoutes from './products/index.js';
+import amazingRoutes from './amazing/index.js';
 import cartRoutes from './cart/index.js';
 import orderRoutes from './orders/index.js';
 import reviewRoutes from './reviews/index.js';
@@ -17,6 +18,7 @@ apiRouter.get('/health', getHealthCheck);
 // Mount modular sub-routers
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/products', productRoutes);
+apiRouter.use('/amazing-products', amazingRoutes);
 apiRouter.use('/cart', cartRoutes);
 apiRouter.use('/orders', orderRoutes);
 apiRouter.use('/reviews', reviewRoutes);

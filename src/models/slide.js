@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { db } from './db.js';
 import { isDBConnected } from '../config/database.js';
+import { saveBase64ToFile } from '../utils/format.js';
 
 /**
  * Slide Mongoose Schema
@@ -38,13 +39,17 @@ export const SlideModel = {
   },
 
   create: async (data) => {
+    const prepared = { ...data };
+    if (prepared.image && prepared.image.startsWith('data:')) {
+      prepared.image = saveBase64ToFile(prepared.image, 'slides');
+    }
     if (isDBConnected()) {
-      const created = await Slide.create(data);
+      const created = await Slide.create(prepared);
       return created.toObject();
     }
     const newSlide = {
-      _id: data._id || db.generateId(),
-      image: data.image || '',
+      _id: prepared._id || db.generateId(),
+      image: prepared.image || '',
       createdAt: new Date().toISOString()
     };
     db.slides.push(newSlide);
@@ -52,15 +57,19 @@ export const SlideModel = {
   },
 
   findByIdAndUpdate: async (id, updateData) => {
+    const prepared = { ...updateData };
+    if (prepared.image && prepared.image.startsWith('data:')) {
+      prepared.image = saveBase64ToFile(prepared.image, 'slides');
+    }
     if (isDBConnected()) {
-      return await Slide.findByIdAndUpdate(id, updateData, { new: true }).lean();
+      return await Slide.findByIdAndUpdate(id, prepared, { new: true }).lean();
     }
     const index = db.slides.findIndex(s => s._id === id);
     if (index === -1) return null;
 
     db.slides[index] = {
       ...db.slides[index],
-      image: updateData.image !== undefined ? updateData.image : db.slides[index].image,
+      image: prepared.image !== undefined ? prepared.image : db.slides[index].image,
       updatedAt: new Date().toISOString()
     };
     return db.slides[index];
