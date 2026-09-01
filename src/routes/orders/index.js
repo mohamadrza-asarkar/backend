@@ -3,24 +3,37 @@ import {
   createOrder,
   getMyOrders,
   getOrderById,
-  payOrder,
+  getOrderByTrackingCode,
+  uploadPaymentReceipt,
+  verifyPayment,
   updateOrderStatus
 } from './controller.js';
-import { validateCreateOrder, validateUpdateOrderStatus } from './validation.js';
-import { validateRequest } from '../../middlewares/validate.middleware.js';
-import { protect, adminOnly } from '../../middlewares/auth.middleware.js';
+import { isAuth } from '../../middlewares/isAuth.js';
+import { isAdmin } from '../../middlewares/isAdmin.js';
+import { uploadReceipt } from '../../middlewares/upload.js';
 
 const router = Router();
 
-// All order operations require authentication
-router.use(protect);
+// Public route: استعلام و پیگیری سفارش با کد رهگیری پستی
+router.get('/track/:postTrackingCode', getOrderByTrackingCode);
+router.get('/track/:code', getOrderByTrackingCode);
 
-router.post('/', validateRequest(validateCreateOrder), createOrder);
+// احراز هویت برای بقیه عملیات‌های سفارش
+router.use(isAuth);
+
+// ثبت سفارش جدید (همراه با امکان آپلود مستقیم رسید)
+router.post('/', uploadReceipt.single('receipt'), createOrder);
+
+// دریافت سفارش‌های کاربر / لیست سفارش‌ها
 router.get('/', getMyOrders);
 router.get('/:id', getOrderById);
-router.post('/:id/pay', payOrder);
 
-// Admin-only order status update
-router.put('/:id/status', adminOnly, validateRequest(validateUpdateOrderStatus), updateOrderStatus);
+// ارسال یا آپلود رسید پرداخت برای سفارش
+router.post('/:id/receipt', uploadReceipt.single('receipt'), uploadPaymentReceipt);
+router.put('/:id/receipt', uploadReceipt.single('receipt'), uploadPaymentReceipt);
+
+// عملیات ادمین: تایید/رد رسید پرداخت و تغییر وضعیت
+router.put('/:id/verify-payment', isAdmin, verifyPayment);
+router.put('/:id/status', isAdmin, updateOrderStatus);
 
 export default router;

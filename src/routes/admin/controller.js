@@ -1,124 +1,77 @@
-import { UserModel } from '../../models/user.js';
-import { ProductModel } from '../../models/product.js';
-import { OrderModel } from '../../models/order.js';
-import { ReviewModel } from '../../models/review.js';
-import { successResponse, errorResponse } from '../../utils/response.js';
+import { User } from '../../models/user.js';
+import { Product } from '../../models/product.js';
+import { Order } from '../../models/order.js';
+import { Review } from '../../models/review.js';
 
-/**
- * Get comprehensive admin dashboard analytics & metrics
- * GET /api/admin/dashboard
- */
-export const getDashboardStats = async (req, res, next) => {
+// آمار کلی سیستم (ادمین)
+export const getDashboardStats = async (req, res) => {
   try {
-    const totalUsers = await UserModel.countDocuments();
-    const totalProducts = await ProductModel.countDocuments();
-    const totalOrders = await OrderModel.countDocuments();
-    const orders = await OrderModel.find();
-    const reviews = await ReviewModel.find();
+    const totalUsers = await User.countDocuments();
+    const totalProducts = await Product.countDocuments();
+    const totalOrders = await Order.countDocuments();
+    const totalReviews = await Review.countDocuments();
+    const orders = await Order.find();
 
-    const totalRevenue = orders
-      .filter(o => o.paymentStatus === 'paid' || o.status === 'delivered')
-      .reduce((sum, o) => sum + (Number(o.totalPrice) || 0), 0);
+    const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.totalPrice) || 0), 0);
 
-    const pendingOrdersCount = orders.filter(o => o.status === 'pending' || o.status === 'processing').length;
-    const deliveredOrdersCount = orders.filter(o => o.status === 'delivered').length;
-
-    // Dynamically calculate sales per status or recent months from real orders
-    const statusBreakdown = {
-      pending: orders.filter(o => o.status === 'pending').length,
-      processing: orders.filter(o => o.status === 'processing').length,
-      shipped: orders.filter(o => o.status === 'shipped').length,
-      delivered: orders.filter(o => o.status === 'delivered').length,
-      cancelled: orders.filter(o => o.status === 'cancelled').length
-    };
-
-    return successResponse(res, 200, 'آمار و ارقام داشبورد مدیریت دریافت شد', {
-      summary: {
-        totalRevenue,
-        totalOrders,
-        totalProducts,
-        totalUsers,
-        pendingOrdersCount,
-        deliveredOrdersCount,
-        totalReviews: reviews.length
-      },
-      statusBreakdown,
-      recentOrders: orders.slice(0, 10)
+    return res.json({
+      success: true,
+      data: {
+        summary: { totalRevenue, totalOrders, totalProducts, totalUsers, totalReviews },
+        recentOrders: orders.slice(0, 10)
+      }
     });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Get all users list (Admin Only)
- * GET /api/admin/users
- */
-export const getAllUsers = async (req, res, next) => {
+// لیست تمام کاربران (ادمین)
+export const getAllUsers = async (req, res) => {
   try {
-    const users = await UserModel.find();
-    const sanitized = users.map(u => {
-      const { password, ...rest } = u;
-      return rest;
-    });
-    return successResponse(res, 200, 'لیست کاربران دریافت شد', sanitized);
+    const users = await User.find();
+    const sanitized = users.map(({ password, ...u }) => u);
+    return res.json({ success: true, data: sanitized });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Update user role (Admin Only)
- * PUT /api/admin/users/:id/role
- */
-export const updateUserRole = async (req, res, next) => {
+// تغییر نقش کاربر (ادمین)
+export const updateUserRole = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { role } = req.body;
-
-    const updated = await UserModel.findByIdAndUpdate(id, { role });
+    const updated = await User.findByIdAndUpdate(req.params.id, { role: req.body.role });
     if (!updated) {
-      return errorResponse(res, 404, 'کاربر مورد نظر یافت نشد');
+      return res.status(404).json({ success: false, message: 'کاربر یافت نشد' });
     }
-
-    const { password, ...userWithoutPassword } = updated;
-    return successResponse(res, 200, 'نقش کاربر با موفقیت تغییر یافت', userWithoutPassword);
+    const { password, ...userData } = updated;
+    return res.json({ success: true, message: 'نقش کاربر به‌روزرسانی شد', data: userData });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Toggle user active status (Admin Only)
- * PUT /api/admin/users/:id/toggle-status
- */
-export const toggleUserStatus = async (req, res, next) => {
+// فعال/غیرفعال‌سازی وضعیت کاربر (ادمین)
+export const toggleUserStatus = async (req, res) => {
   try {
-    const { id } = req.params;
-    const user = await UserModel.findById(id);
-
+    const user = await User.findById(req.params.id);
     if (!user) {
-      return errorResponse(res, 404, 'کاربر مورد نظر یافت نشد');
+      return res.status(404).json({ success: false, message: 'کاربر یافت نشد' });
     }
-
-    const updated = await UserModel.findByIdAndUpdate(id, { isActive: !user.isActive });
-    const { password, ...userWithoutPassword } = updated;
-
-    return successResponse(res, 200, `وضعیت کاربر با موفقیت به ${updated.isActive ? 'فعال' : 'غیرفعال'} تغییر یافت`, userWithoutPassword);
+    const updated = await User.findByIdAndUpdate(req.params.id, { isActive: !user.isActive });
+    const { password, ...userData } = updated;
+    return res.json({ success: true, message: 'وضعیت کاربر تغییر یافت', data: userData });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Get all orders across the system (Admin Only)
- * GET /api/admin/orders
- */
-export const getAllOrders = async (req, res, next) => {
+// دریافت تمام سفارشات (ادمین)
+export const getAllOrders = async (req, res) => {
   try {
-    const orders = await OrderModel.find();
-    return successResponse(res, 200, 'لیست کل سفارشات سیستم دریافت شد', orders);
+    const orders = await Order.find();
+    return res.json({ success: true, data: orders });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

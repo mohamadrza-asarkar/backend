@@ -1,191 +1,102 @@
-import { UserModel } from '../../models/user.js';
-import { hashPassword, comparePassword } from '../../utils/password.js';
-import { generateToken } from '../../utils/jwt.js';
-import { successResponse, errorResponse } from '../../utils/response.js';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { User } from '../../models/user.js';
 
-/**
- * Register a new user with Phone number & Password
- * POST /api/auth/register
- */
-export const register = async (req, res, next) => {
+const jwtKey = process.env.JWT_SECRET || 'ecommerce_secret_jwt_key_2025_safe_and_secure';
+
+// ثبت‌نام کاربر
+export const register = async (req, res) => {
   try {
-    const { name, phone, password, role, address } = req.body;
+    const { name, phone, password, address } = req.body;
     const cleanPhone = String(phone || '').trim();
 
-    const existingUser = await UserModel.findOne({ phone: cleanPhone });
+    const existingUser = await User.findOne({ phone: cleanPhone });
     if (existingUser) {
-      return errorResponse(res, 400, 'این شماره موبایل قبلاً در سیستم ثبت نام کرده است');
+      return res.status(400).json({ success: false, message: 'این شماره موبایل قبلاً ثبت شده است' });
     }
 
-    const hashedPassword = await hashPassword(password);
-
-    const newUser = await UserModel.create({
-      name: name.trim(),
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({
+      name: name?.trim() || 'کاربر',
       phone: cleanPhone,
       password: hashedPassword,
       address: address || '',
-      role: 'user' // Hardcoded to 'user' for maximum security. Admins must be set manually.
+      role: 'user'
     });
 
-    const token = generateToken({
-      id: newUser._id,
-      phone: newUser.phone,
-      role: newUser.role,
-      name: newUser.name
-    });
+    const token = jwt.sign({ id: user._id, phone: user.phone, role: user.role, admin: user.role === 'admin' }, jwtKey);
+    const { password: _, ...userData } = user;
 
-    const userResponse = {
-      _id: newUser._id,
-      name: newUser.name,
-      phone: newUser.phone,
-      role: newUser.role,
-      address: newUser.address,
-      avatar: newUser.avatar,
-      createdAt: newUser.createdAt
-    };
-
-    return successResponse(res, 201, 'ثبت‌نام با موفقیت انجام شد', {
-      user: userResponse,
-      token
+    return res.status(201).json({
+      success: true,
+      message: 'ثبت‌نام با موفقیت انجام شد',
+      data: { user: userData, token }
     });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Login existing user with Phone number & Password
- * POST /api/auth/login
- */
-export const login = async (req, res, next) => {
+// ورود کاربر
+export const login = async (req, res) => {
   try {
     const { phone, password } = req.body;
     const cleanPhone = String(phone || '').trim();
 
-    const user = await UserModel.findOne({ phone: cleanPhone });
+    const user = await User.findOne({ phone: cleanPhone });
     if (!user) {
-      return errorResponse(res, 401, 'شماره موبایل یا کلمه عبور اشتباه است');
+      return res.status(401).json({ success: false, message: 'شماره موبایل یا رمز عبور اشتباه است' });
     }
 
-    if (user.isActive === false) {
-      return errorResponse(res, 403, 'حساب کاربری شما غیرفعال شده است');
-    }
-
-    const isMatch = await comparePassword(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return errorResponse(res, 401, 'شماره موبایل یا کلمه عبور اشتباه است');
+      return res.status(401).json({ success: false, message: 'شماره موبایل یا رمز عبور اشتباه است' });
     }
 
-    const token = generateToken({
-      id: user._id,
-      phone: user.phone,
-      role: user.role,
-      name: user.name
-    });
+    const token = jwt.sign({ id: user._id, phone: user.phone, role: user.role, admin: user.role === 'admin' }, jwtKey);
+    const { password: _, ...userData } = user;
 
-    const userResponse = {
-      _id: user._id,
-      name: user.name,
-      phone: user.phone,
-      role: user.role,
-      avatar: user.avatar,
-      address: user.address,
-      createdAt: user.createdAt
-    };
-
-    return successResponse(res, 200, 'ورود با موفقیت انجام شد', {
-      user: userResponse,
-      token
+    return res.json({
+      success: true,
+      message: 'ورود با موفقیت انجام شد',
+      data: { user: userData, token }
     });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Get current authenticated user profile
- * GET /api/auth/me
- */
-export const getMe = async (req, res, next) => {
+// اطلاعات کاربر لاگین شده
+export const getMe = async (req, res) => {
+  const { password: _, ...userData } = req.user;
+  return res.json({ success: true, data: { user: userData } });
+};
+
+// ویرایش پروفایل
+export const updateProfile = async (req, res) => {
   try {
-    const user = req.user;
-    const userResponse = {
-      _id: user._id,
-      name: user.name,
-      phone: user.phone,
-      role: user.role,
-      avatar: user.avatar,
-      address: user.address,
-      isActive: user.isActive,
-      createdAt: user.createdAt
-    };
-
-    return successResponse(res, 200, 'اطلاعات پروفایل کاربر دریافت شد', { user: userResponse });
+    const { name, address, avatar } = req.body;
+    const updated = await User.findByIdAndUpdate(req.user._id, { name, address, avatar });
+    const { password: _, ...userData } = updated || {};
+    return res.json({ success: true, message: 'پروفایل به‌روزرسانی شد', data: { user: userData } });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Update authenticated user profile
- * PUT /api/auth/profile
- */
-export const updateProfile = async (req, res, next) => {
-  try {
-    const { name, phone, avatar, address } = req.body;
-    const updateData = {};
-
-    if (name) updateData.name = name.trim();
-    if (avatar !== undefined) updateData.avatar = avatar;
-    if (address !== undefined) updateData.address = address;
-
-    if (phone) {
-      const cleanPhone = String(phone).trim();
-      if (cleanPhone !== req.user.phone) {
-        const existing = await UserModel.findOne({ phone: cleanPhone });
-        if (existing) {
-          return errorResponse(res, 400, 'این شماره موبایل توسط کاربر دیگری استفاده می‌شود');
-        }
-        updateData.phone = cleanPhone;
-      }
-    }
-
-    const updated = await UserModel.findByIdAndUpdate(req.user._id, updateData);
-
-    return successResponse(res, 200, 'پروفایل کاربری با موفقیت به‌روزرسانی شد', {
-      user: {
-        _id: updated._id,
-        name: updated.name,
-        phone: updated.phone,
-        role: updated.role,
-        avatar: updated.avatar,
-        address: updated.address
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Change user password
- * PUT /api/auth/change-password
- */
-export const changePassword = async (req, res, next) => {
+// تغییر رمز عبور
+export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const user = await UserModel.findById(req.user._id);
-
-    const isMatch = await comparePassword(currentPassword, user.password);
+    const isMatch = await bcrypt.compare(currentPassword, req.user.password);
     if (!isMatch) {
-      return errorResponse(res, 400, 'رمز عبور فعلی نادرست است');
+      return res.status(400).json({ success: false, message: 'رمز عبور فعلی اشتباه است' });
     }
 
-    const hashed = await hashPassword(newPassword);
-    await UserModel.findByIdAndUpdate(user._id, { password: hashed });
-
-    return successResponse(res, 200, 'رمز عبور با موفقیت تغییر یافت');
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await User.findByIdAndUpdate(req.user._id, { password: hashedPassword });
+    return res.json({ success: true, message: 'رمز عبور با موفقیت تغییر یافت' });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

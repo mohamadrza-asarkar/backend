@@ -1,70 +1,25 @@
-/**
- * Standard API Success Response Formatter
- * @param {import('express').Response} res
- * @param {number} statusCode
- * @param {string} message
- * @param {any} data
- * @param {Object} [meta]
- */
-export const successResponse = (res, statusCode = 200, message = 'عملیات با موفقیت انجام شد', data = null, meta = null) => {
-  const response = {
+export const successResponse = (res, statusCode = 200, message = 'عملیات با موفقیت انجام شد', data = null) => {
+  return res.status(statusCode).json({
     success: true,
-    statusCode,
     message,
-    timestamp: new Date().toISOString()
-  };
-
-  if (data !== null && data !== undefined) {
-    response.data = data;
-  }
-
-  if (meta) {
-    response.meta = meta;
-  }
-
-  return res.status(statusCode).json(response);
+    ...(data !== null ? { data } : {})
+  });
 };
 
-/**
- * Standard API Error Response Formatter
- * @param {import('express').Response} res
- * @param {number} statusCode
- * @param {string} message
- * @param {any} [errors]
- */
-export const errorResponse = (res, statusCode = 500, message = 'خطای داخلی سرور رخ داده است', errors = null) => {
-  const response = {
+export const errorResponse = (res, statusCode = 500, message = 'خطا در انجام عملیات') => {
+  return res.status(statusCode).json({
     success: false,
-    statusCode,
-    message,
-    timestamp: new Date().toISOString()
-  };
-
-  if (errors) {
-    response.errors = errors;
-  }
-
-  return res.status(statusCode).json(response);
+    message
+  });
 };
 
-/**
- * Standard Paginated Response Helper
- */
-export const paginateResponse = (res, items, page, limit, totalItems, message = 'دریافت لیست با موفقیت') => {
-  const totalPages = Math.ceil(totalItems / limit) || 1;
+export const paginateResponse = (res, data, page, limit, total, message = 'دریافت با موفقیت') => {
   return res.status(200).json({
     success: true,
-    statusCode: 200,
     message,
-    data: items,
-    pagination: {
-      currentPage: Number(page),
-      limit: Number(limit),
-      totalItems: Number(totalItems),
-      totalPages,
-      hasNextPage: Number(page) < totalPages,
-      hasPrevPage: Number(page) > 1
-    },
-    timestamp: new Date().toISOString()
+    data,
+    total,
+    page: Number(page),
+    limit: Number(limit)
   });
 };

@@ -6,8 +6,8 @@ import {
   updateSlide,
   deleteSlide
 } from './controller.js';
-import { uploadSlide } from '../../middlewares/upload.middleware.js';
-import { protect, adminOnly } from '../../middlewares/auth.middleware.js';
+import { uploadSlide } from '../../middlewares/upload.js';
+import { isAdmin } from '../../middlewares/isAdmin.js';
 
 const router = Router();
 
@@ -16,8 +16,8 @@ router.get('/', getSlides);
 router.get('/:id', getSlideById);
 
 // Admin-only routes (Multer single image upload support)
-router.post('/', protect, adminOnly, uploadSlide.single('image'), createSlide);
-router.put('/:id', protect, adminOnly, uploadSlide.single('image'), updateSlide);
-router.delete('/:id', protect, adminOnly, deleteSlide);
+router.post('/', isAdmin, uploadSlide.single('image'), createSlide);
+router.put('/:id', isAdmin, uploadSlide.single('image'), updateSlide);
+router.delete('/:id', isAdmin, deleteSlide);
 
 export default router;

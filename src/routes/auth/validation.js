@@ -42,39 +42,3 @@ export const validateLogin = (data = {}) => {
     value: data
   };
 };
-
-export const validateUpdateProfile = (data = {}) => {
-  const errors = {};
-  const { name, phone } = data;
-
-  if (name && (typeof name !== 'string' || name.trim().length < 2)) {
-    errors.name = 'نام باید حداقل ۲ کاراکتر باشد';
-  }
-
-  if (phone && !/^09\d{9}$/.test(phone.trim())) {
-    errors.phone = 'فرمت شماره همراه نامعتبر است (مثال: 09121234567)';
-  }
-
-  return {
-    error: Object.keys(errors).length > 0 ? errors : null,
-    value: data
-  };
-};
-
-export const validateChangePassword = (data = {}) => {
-  const errors = {};
-  const { currentPassword, newPassword } = data;
-
-  if (!currentPassword) {
-    errors.currentPassword = 'رمز عبور فعلی الزامی است';
-  }
-
-  if (!newPassword || newPassword.length < 6) {
-    errors.newPassword = 'رمز عبور جدید باید حداقل ۶ کاراکتر باشد';
-  }
-
-  return {
-    error: Object.keys(errors).length > 0 ? errors : null,
-    value: data
-  };
-};

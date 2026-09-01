@@ -389,77 +389,101 @@
 
 ---
 
-## 📦 ۵. ثبت و مدیریت سفارشات (Orders)
+## 📦 ۵. ثبت، مدیریت و رهگیری سفارشات با کد رهگیری پستی (Orders & Postal Tracking)
 
 مسیر اصلی: `/api/orders`
-*تمامی مسیرها نیاز به ورود دارند.*
 
 ### 5.1 ثبت سفارش جدید (Create Order)
 * **آدرس:** `POST /api/orders`
-* **دسترسی:** کاربر لاگین شده
-* **بدنه درخواست:**
+* **دسترسی:** کاربر لاگین شده (`Authorization: Bearer <TOKEN>`)
+* **توضیحات:** سفارش با اطلاعات مشتری و محصولات ثبت شده و در انتظار پرداخت یا بررسی قرار می‌گیرد. کاربر می‌تواند فیش واریزی را مستقیماً با فایل (`receipt`) یا فیلد Base64 (`paymentReceipt`) ارسال کند.
+* **بدنه درخواست (JSON یا فرم‌دیتا):**
 ```json
 {
-  "items": [
+  "name": "محمدرضا اسدی",
+  "phone": "09121112233",
+  "address": "تهران، میدان ونک، خیابان ملاصدرا",
+  "postalCode": "1991812345",
+  "products": [
     {
-      "productId": "64ebd3a51f2a4c11b0e98c12",
-      "quantity": 10
+      "name": "برنج طارم هاشمی درجه یک مازندران",
+      "price": 210000,
+      "quantity": 2
     }
   ],
-  "shippingAddress": "تهران، خیابان ولیعصر، کوچه نمونه، پلاک ۱۰، واحد ۴",
-  "postalCode": "1234567890",
-  "receiverName": "محمدرضا عسکرکار",
-  "receiverPhone": "09123456789"
+  "paymentReceipt": "/uploads/receipts/sample_receipt.jpg"
 }
 ```
 * **پاسخ موفق (201):**
 ```json
 {
   "success": true,
-  "statusCode": 201,
-  "message": "سفارش شما با موفقیت ثبت شد",
+  "message": "سفارش با موفقیت ثبت شد",
   "data": {
-    "_id": "64ebd4f91f2a4cd11b0e99f5",
-    "user": "64ebd3a51f2a4c11b0e98c11",
-    "items": [...],
-    "totalPrice": 1200000,
-    "shippingAddress": "تهران، خیابان ولیعصر، کوچه نمونه، پلاک ۱۰، واحد ۴",
-    "isPaid": false,
-    "status": "pending",
-    "createdAt": "2026-08-28T11:45:00.000Z"
+    "_id": "6a95d484a5d7fc5f52b44914",
+    "name": "محمدرضا اسدی",
+    "phone": "09121112233",
+    "address": "تهران، میدان ونک، خیابان ملاصدرا",
+    "postalCode": "1991812345",
+    "postTrackingCode": "",
+    "state": "pending",
+    "paymentStatus": "pending",
+    "paymentReceipt": "",
+    "paymentReceiptDate": null,
+    "products": [...],
+    "totalPrice": 420000,
+    "createdAt": "2026-09-01T15:48:03.338Z"
   }
 }
 ```
 
-### 5.2 دریافت لیست سفارشات من (My Orders)
-* **آدرس:** `GET /api/orders`
-* **دسترسی:** کاربر لاگین شده
+### 5.2 استعلام و رهگیری سفارش با کد رهگیری پستی (Track Order by Postal Code)
+* **آدرس:** `GET /api/orders/track/:postTrackingCode`
+* **دسترسی:** عمومی (بدون نیاز به لاگین)
+* **توضیحات:** استعلام سفارش با استفاده از کد رهگیری پستی وارد شده توسط ادمین (یا شناسه سفارش).
+* **پاسخ موفق (200):** اطلاعات کامل سفارش به همراه وضعیت، فیش پرداخت و کد مرسوله پستی.
 
-### 5.3 دریافت جزئیات یک سفارش با شناسه (Get Order By ID)
-* **آدرس:** `GET /api/orders/:id`
-* **دسترسی:** کاربر صاحب سفارش / مدیر سیستم
-
-### 5.4 شبیه‌ساز پرداخت فاکتور سفارش (Pay Order)
-* **آدرس:** `POST /api/orders/:id/pay`
-* **دسترسی:** کاربر لاگین شده
-* **پاسخ موفق (200):**
+### 5.3 ارسال یا آپلود رسید پرداخت بانکی (Upload Payment Receipt)
+* **آدرس:** `PUT /api/orders/:id/receipt` یا `POST /api/orders/:id/receipt`
+* **دسترسی:** کاربر صاحب سفارش / ادمین
+* **بدنه درخواست (فایل با کلید `receipt` یا JSON با فیلد `receiptImage` / `paymentReceipt`):**
 ```json
 {
-  "success": true,
-  "statusCode": 200,
-  "message": "پرداخت با موفقیت انجام شد و سفارش شما در صف پردازش قرار گرفت"
+  "receiptImage": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
 }
 ```
 
-### 5.5 تغییر وضعیت سفارش (مخصوص مدیر)
-* **آدرس:** `PUT /api/orders/:id/status`
-* **دسترسی:** مدیر سیستم
+### 5.4 بررسی، تایید یا رد رسید پرداخت توسط ادمین (Verify Payment)
+* **آدرس:** `PUT /api/orders/:id/verify-payment`
+* **دسترسی:** مدیر سیستم (`Admin Only`)
 * **بدنه درخواست:**
 ```json
 {
-  "status": "completed" // مقادیر مجاز: 'pending', 'processing', 'shipped', 'completed', 'cancelled'
+  "status": "approved",
+  "state": "processing",
+  "adminNote": "فیش بانکی تایید شد و سفارش در حال بسته‌بندی است"
 }
 ```
+
+### 5.5 تغییر وضعیت سفارش و ثبت دستی کد رهگیری مرسوله پستی (Update Status & Postal Tracking Code)
+* **آدرس:** `PUT /api/orders/:id/status`
+* **دسترسی:** مدیر سیستم (`Admin Only`)
+* **بدنه درخواست:**
+```json
+{
+  "state": "shipped",
+  "postTrackingCode": "241098234509123891238912",
+  "adminNote": "بسته تحویل اداره پست شد و کد رهگیری پستی ثبت گردید"
+}
+```
+
+### 5.6 دریافت لیست سفارشات من (My Orders)
+* **آدرس:** `GET /api/orders`
+* **دسترسی:** کاربر لاگین شده
+
+### 5.7 دریافت جزئیات یک سفارش با شناسه (Get Order By ID)
+* **آدرس:** `GET /api/orders/:id`
+* **دسترسی:** کاربر صاحب سفارش / مدیر سیستم
 
 ---
 

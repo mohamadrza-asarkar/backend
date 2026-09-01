@@ -8,10 +8,8 @@ import {
   updateProduct,
   deleteProduct
 } from './controller.js';
-import { validateProduct, validateProductUpdate } from './validation.js';
-import { validateRequest } from '../../middlewares/validate.middleware.js';
-import { protect, adminOnly } from '../../middlewares/auth.middleware.js';
-import { uploadProduct } from '../../middlewares/upload.middleware.js';
+import { isAdmin } from '../../middlewares/isAdmin.js';
+import { uploadProduct } from '../../middlewares/upload.js';
 
 const router = Router();
 
@@ -22,8 +20,8 @@ router.get('/search', searchProducts);
 router.get('/:id', getProductById);
 
 // Admin-only product routes with Multer single image upload support
-router.post('/', protect, adminOnly, uploadProduct.single('image'), validateRequest(validateProduct), createProduct);
-router.put('/:id', protect, adminOnly, uploadProduct.single('image'), validateRequest(validateProductUpdate), updateProduct);
-router.delete('/:id', protect, adminOnly, deleteProduct);
+router.post('/', isAdmin, uploadProduct.single('image'), createProduct);
+router.put('/:id', isAdmin, uploadProduct.single('image'), updateProduct);
+router.delete('/:id', isAdmin, deleteProduct);
 
 export default router;

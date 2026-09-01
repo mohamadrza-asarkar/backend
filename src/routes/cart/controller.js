@@ -1,206 +1,114 @@
-import { CartModel } from '../../models/cart.js';
-import { ProductModel } from '../../models/product.js';
-import { successResponse, errorResponse } from '../../utils/response.js';
+import { Cart } from '../../models/cart.js';
+import { Product } from '../../models/product.js';
 
-// Helper to recalculate cart totals
-const recalculateCart = (cart) => {
-  let totalPrice = 0;
-  const items = cart.products || cart.items || [];
-
-  for (const item of items) {
-    totalPrice += Number(item.price || 0) * (Number(item.quantity) || 1);
-  }
-
-  cart.products = items;
-  cart.items = items;
-  cart.totalPrice = totalPrice;
-  cart.updatedAt = new Date().toISOString();
-  return cart;
-};
-
-/**
- * Get current cart
- * GET /api/cart
- */
-export const getCart = async (req, res, next) => {
+// دریافت سبد خرید
+export const getCart = async (req, res) => {
   try {
-    const userId = req.user ? req.user._id : (req.headers['x-guest-id'] || 'guest-session');
-    let cart = await CartModel.findOne({ userId });
-
+    const userId = req.user?._id || req.user?.id || 'guest';
+    let cart = await Cart.findOne({ userId });
     if (!cart) {
-      cart = await CartModel.create({
-        userId,
-        products: [],
-        items: [],
-        totalPrice: 0
-      });
+      cart = await Cart.create({ userId, products: [], totalPrice: 0 });
     }
-
-    return successResponse(res, 200, 'اطلاعات سبد خرید دریافت شد', cart);
+    return res.json({ success: true, data: cart });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Add or increase product in cart
- * POST /api/cart/items
- */
-export const addItemToCart = async (req, res, next) => {
+// افزودن محصول به سبد خرید
+export const addItemToCart = async (req, res) => {
   try {
-    const userId = req.user ? req.user._id : (req.headers['x-guest-id'] || 'guest-session');
+    const userId = req.user?._id || req.user?.id || 'guest';
     const { productId, quantity = 1 } = req.body;
 
-    const product = await ProductModel.findById(productId);
+    const product = await Product.findById(productId);
     if (!product) {
-      return errorResponse(res, 404, 'محصول مورد نظر یافت نشد');
+      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
     }
 
-    if (product.isAvailable === false || (product.countInStock !== undefined && product.countInStock <= 0)) {
-      return errorResponse(res, 400, 'این محصول در حال حاضر موجود نمی‌باشد');
-    }
+    let cart = await Cart.findOne({ userId });
+    if (!cart) cart = await Cart.create({ userId, products: [], totalPrice: 0 });
 
-    let cart = await CartModel.findOne({ userId });
-    if (!cart) {
-      cart = await CartModel.create({
-        userId,
-        products: []
-      });
-    }
+    const products = cart.products || [];
+    const index = products.findIndex(item => String(item.productId || item._id) === String(productId));
+    const qty = Number(quantity) || 1;
 
-    const items = cart.products || cart.items || [];
-    const existingIndex = items.findIndex(item => item.productId === productId);
-    const addedQty = Number(quantity) || 1;
-
-    if (existingIndex > -1) {
-      items[existingIndex].quantity += addedQty;
-      items[existingIndex].totalPrice = items[existingIndex].quantity * items[existingIndex].price;
+    if (index > -1) {
+      products[index].quantity = (Number(products[index].quantity) || 0) + qty;
     } else {
-      items.push({
-        product: {
-          _id: product._id,
-          name: product.name || product.title,
-          price: product.price,
-          isAvailable: product.isAvailable,
-          image: product.image || (product.images && product.images[0]) || ''
-        },
+      products.push({
         productId: product._id,
-        name: product.name || product.title,
-        title: product.name || product.title,
+        name: product.name,
         price: product.price,
-        image: product.image || (product.images && product.images[0]) || '',
-        quantity: addedQty,
-        totalPrice: addedQty * product.price
+        image: product.image,
+        quantity: qty
       });
     }
 
-    cart.products = items;
-    cart.items = items;
-    recalculateCart(cart);
+    const totalPrice = products.reduce((sum, p) => sum + (Number(p.price || 0) * Number(p.quantity || 1)), 0);
+    cart = await Cart.findOneAndUpdate({ userId }, { products, totalPrice });
 
-    await CartModel.findOneAndUpdate({ userId }, cart);
-
-    return successResponse(res, 200, 'کالا با موفقیت به سبد خرید اضافه گردید', cart);
+    return res.json({ success: true, message: 'محصول به سبد خرید اضافه شد', data: cart });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Update item quantity in cart
- * PUT /api/cart/items/:productId
- */
-export const updateItemQuantity = async (req, res, next) => {
+// ویرایش تعداد محصول در سبد خرید
+export const updateCartItem = async (req, res) => {
   try {
-    const userId = req.user ? req.user._id : (req.headers['x-guest-id'] || 'guest-session');
+    const userId = req.user?._id || req.user?.id || 'guest';
     const { productId } = req.params;
-    const { quantity } = req.body;
+    const qty = Number(req.body.quantity);
 
-    const newQty = Number(quantity);
-    if (isNaN(newQty) || newQty < 0) {
-      return errorResponse(res, 400, 'تعداد باید عدد مثبت یا صفر باشد');
-    }
+    let cart = await Cart.findOne({ userId });
+    if (!cart) return res.status(404).json({ success: false, message: 'سبد خرید یافت نشد' });
 
-    let cart = await CartModel.findOne({ userId });
-    if (!cart) {
-      return errorResponse(res, 404, 'سبد خرید یافت نشد');
-    }
-
-    let items = cart.products || cart.items || [];
-    const existingIndex = items.findIndex(item => item.productId === productId);
-
-    if (existingIndex === -1) {
-      return errorResponse(res, 404, 'این محصول در سبد خرید یافت نشد');
-    }
-
-    if (newQty === 0) {
-      items.splice(existingIndex, 1);
+    let products = cart.products || [];
+    if (qty <= 0) {
+      products = products.filter(item => String(item.productId || item._id) !== String(productId));
     } else {
-      items[existingIndex].quantity = newQty;
-      items[existingIndex].totalPrice = newQty * items[existingIndex].price;
+      const item = products.find(item => String(item.productId || item._id) === String(productId));
+      if (item) item.quantity = qty;
     }
 
-    cart.products = items;
-    cart.items = items;
-    recalculateCart(cart);
+    const totalPrice = products.reduce((sum, p) => sum + (Number(p.price || 0) * Number(p.quantity || 1)), 0);
+    cart = await Cart.findOneAndUpdate({ userId }, { products, totalPrice });
 
-    await CartModel.findOneAndUpdate({ userId }, cart);
-
-    return successResponse(res, 200, 'تعداد محصول در سبد خرید به‌روزرسانی شد', cart);
+    return res.json({ success: true, message: 'سبد خرید به‌روزرسانی شد', data: cart });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export const updateCartItem = updateItemQuantity;
+export const updateItemQuantity = updateCartItem;
 
-
-/**
- * Remove item from cart
- * DELETE /api/cart/items/:productId
- */
-export const removeItemFromCart = async (req, res, next) => {
+// حذف یک محصول از سبد خرید
+export const removeItemFromCart = async (req, res) => {
   try {
-    const userId = req.user ? req.user._id : (req.headers['x-guest-id'] || 'guest-session');
+    const userId = req.user?._id || req.user?.id || 'guest';
     const { productId } = req.params;
 
-    let cart = await CartModel.findOne({ userId });
-    if (!cart) {
-      return errorResponse(res, 404, 'سبد خرید یافت نشد');
-    }
+    let cart = await Cart.findOne({ userId });
+    if (!cart) return res.status(404).json({ success: false, message: 'سبد خرید یافت نشد' });
 
-    let items = (cart.products || cart.items || []).filter(item => item.productId !== productId);
-    cart.products = items;
-    cart.items = items;
-    recalculateCart(cart);
+    const products = (cart.products || []).filter(item => String(item.productId || item._id) !== String(productId));
+    const totalPrice = products.reduce((sum, p) => sum + (Number(p.price || 0) * Number(p.quantity || 1)), 0);
+    cart = await Cart.findOneAndUpdate({ userId }, { products, totalPrice });
 
-    await CartModel.findOneAndUpdate({ userId }, cart);
-
-    return successResponse(res, 200, 'محصول از سبد خرید حذف شد', cart);
+    return res.json({ success: true, message: 'محصول از سبد خرید حذف شد', data: cart });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Clear cart
- * DELETE /api/cart
- */
-export const clearCart = async (req, res, next) => {
+// خالی کردن کامل سبد خرید
+export const clearCart = async (req, res) => {
   try {
-    const userId = req.user ? req.user._id : (req.headers['x-guest-id'] || 'guest-session');
-    let cart = await CartModel.findOne({ userId });
-
-    if (cart) {
-      cart.products = [];
-      cart.items = [];
-      cart.totalPrice = 0;
-      cart.updatedAt = new Date().toISOString();
-      await CartModel.findOneAndUpdate({ userId }, cart);
-    }
-
-    return successResponse(res, 200, 'سبد خرید به طور کامل تخلیه شد', { products: [], totalPrice: 0 });
+    const userId = req.user?._id || req.user?.id || 'guest';
+    const cart = await Cart.findOneAndUpdate({ userId }, { products: [], totalPrice: 0 });
+    return res.json({ success: true, message: 'سبد خرید خالی شد', data: cart });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

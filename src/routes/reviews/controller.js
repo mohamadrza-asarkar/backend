@@ -1,93 +1,61 @@
-import { ReviewModel } from '../../models/review.js';
-import { ProductModel } from '../../models/product.js';
-import { successResponse, errorResponse } from '../../utils/response.js';
+import { Review } from '../../models/review.js';
+import { Product } from '../../models/product.js';
 
-/**
- * Get reviews
- * GET /api/reviews?productId=...
- */
-export const getProductReviews = async (req, res, next) => {
+// دریافت نظرات
+export const getProductReviews = async (req, res) => {
   try {
-    const { productId, sender } = req.query;
-    const filter = {};
-    if (productId) filter.productId = productId;
-    if (sender) filter.sender = sender;
-
-    const reviews = await ReviewModel.find(filter);
-    return successResponse(res, 200, 'لیست نظرات دریافت شد', reviews);
+    const filter = req.query.productId ? { productId: req.query.productId } : {};
+    const reviews = await Review.find(filter);
+    return res.json({ success: true, data: reviews });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Submit a review for a product
- * POST /api/reviews
- * بدنه درخواست: productId (شناسه محصول), sender (فرستنده), comment یا text (متن نظر), rating (امتیاز)
- */
-export const createReview = async (req, res, next) => {
+// ثبت نظر جدید
+export const createReview = async (req, res) => {
   try {
-    const user = req.user;
-    const { productId, rating, comment, text, sender } = req.body;
-
-    const product = await ProductModel.findById(productId);
+    const { productId, rating = 5, comment, text, sender } = req.body;
+    const product = await Product.findById(productId);
     if (!product) {
-      return errorResponse(res, 404, 'محصول مورد نظر برای ثبت دیدگاه یافت نشد');
+      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
     }
 
-    const reviewSender = sender || user?.name || 'کاربر مهمان';
-    const reviewText = comment || text;
-
-    const newReview = await ReviewModel.create({
-      productId: product._id,
-      sender: reviewSender,
-      comment: reviewText,
-      text: reviewText,
+    const review = await Review.create({
+      productId,
+      sender: sender || req.user?.name || 'کاربر',
+      comment: comment || text || '',
       rating: Number(rating) || 5
     });
 
-    return successResponse(res, 201, 'نظر با موفقیت ثبت گردید', newReview);
+    return res.status(201).json({ success: true, message: 'نظر با موفقیت ثبت شد', data: review });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Delete review (Admin Only)
- * DELETE /api/reviews/:id
- */
-export const deleteReview = async (req, res, next) => {
+// حذف نظر (ادمین)
+export const deleteReview = async (req, res) => {
   try {
-    const { id } = req.params;
-    const deleted = await ReviewModel.findByIdAndDelete(id);
-
+    const deleted = await Review.findByIdAndDelete(req.params.id);
     if (!deleted) {
-      return errorResponse(res, 404, 'دیدگاه یافت نشد');
+      return res.status(404).json({ success: false, message: 'نظر یافت نشد' });
     }
-
-    return successResponse(res, 200, 'دیدگاه حذف گردید', { id });
+    return res.json({ success: true, message: 'نظر حذف شد' });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Reply to review (Admin Only)
- * POST /api/reviews/:id/reply
- */
-export const replyReview = async (req, res, next) => {
+// پاسخ به نظر (ادمین)
+export const replyReview = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { reply } = req.body;
-
-    const updated = await ReviewModel.findByIdAndUpdate(id, { adminReply: reply });
-    if (!updated) {
-      return errorResponse(res, 404, 'دیدگاه یافت نشد');
+    const review = await Review.findByIdAndUpdate(req.params.id, { adminReply: req.body.reply });
+    if (!review) {
+      return res.status(404).json({ success: false, message: 'نظر یافت نشد' });
     }
-
-    return successResponse(res, 200, 'پاسخ به دیدگاه با موفقیت ثبت شد', updated);
+    return res.json({ success: true, message: 'پاسخ ثبت شد', data: review });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
-

@@ -1,197 +1,210 @@
-import { OrderModel } from '../../models/order.js';
-import { CartModel } from '../../models/cart.js';
-import { ProductModel } from '../../models/product.js';
-import { successResponse, errorResponse } from '../../utils/response.js';
+import { Order } from '../../models/order.js';
+import { Cart } from '../../models/cart.js';
 
-/**
- * Create a new order
- * POST /api/orders
- * هر سفارش حتماً شامل حداقل یک محصول (از طریق body به نام products یا items یا از سبد خرید اکتیو) است.
- */
-export const createOrder = async (req, res, next) => {
+// ثبت سفارش جدید همراه با امکان پیوست رسید پرداخت
+export const createOrder = async (req, res) => {
   try {
     const user = req.user;
-    const { 
-      buyerName, 
-      address, 
-      phone, 
-      products: directProducts, 
-      items: directItems,
-      shippingAddress, 
-      paymentMethod = 'online', 
-      notes 
-    } = req.body;
+    const { name, phone, address, postalCode, products = [], paymentReceipt: receiptBody } = req.body;
 
-    const finalBuyerName = buyerName || (shippingAddress && shippingAddress.fullName) || user?.name || 'خریدار';
-    const finalPhone = phone || (shippingAddress && shippingAddress.phone) || user?.phone || '';
-    const finalAddress = address || (shippingAddress ? (typeof shippingAddress === 'string' ? shippingAddress : (shippingAddress.addressLine || `${shippingAddress.province || ''} ${shippingAddress.city || ''} ${shippingAddress.addressLine || ''}`)) : '');
-
-    let orderProducts = directProducts || directItems;
-
-    // If no direct products passed, pull from user's active cart
-    if (!orderProducts || orderProducts.length === 0) {
-      const cart = await CartModel.findOne({ userId: user ? user._id : 'guest-session' });
-      if (!cart || (cart.products && cart.products.length === 0 && (!cart.items || cart.items.length === 0))) {
-        return errorResponse(res, 400, 'سبد خرید شما خالی است و محصولی جهت ثبت سفارش وجود ندارد. لطفاً ابتدا کالایی به سبد اضافه کنید.');
-      }
-      orderProducts = cart.products || cart.items;
+    let items = typeof products === 'string' ? JSON.parse(products) : products;
+    if ((!items || !items.length) && user) {
+      const cart = await Cart.findOne({ userId: user._id });
+      if (cart?.products?.length) items = cart.products;
     }
 
-    if (!orderProducts || orderProducts.length === 0) {
-      return errorResponse(res, 400, 'ثبت سفارش ناموفق: هر سفارش باید حتماً شامل حداقل یک محصول باشد');
+    if (!items || !items.length) {
+      return res.status(400).json({ success: false, message: 'محصولی برای ثبت سفارش ارسال نشده است' });
     }
 
-    // Verify inventory and calculate sums
-    let totalPrice = 0;
-    const processedProducts = [];
+    const totalPrice = items.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0);
 
-    for (const item of orderProducts) {
-      const prodId = item.productId || (item.product && item.product._id) || item._id;
-      const product = await ProductModel.findById(prodId);
-      
-      const productName = product ? (product.name || product.title) : (item.name || item.title || 'محصول برنج');
-      const unitPrice = product ? Number(product.price) : (Number(item.price) || 0);
-      const qty = Number(item.quantity) || 1;
-      const itemImage = product ? (product.image || (product.images && product.images[0]) || '') : (item.image || '');
-
-      if (product) {
-        if (product.isAvailable === false || (product.countInStock !== undefined && product.countInStock < qty)) {
-          return errorResponse(res, 400, `موجودی کالای "${productName}" کافی نیست`);
-        }
-      }
-
-      totalPrice += unitPrice * qty;
-
-      processedProducts.push({
-        productId: prodId || 'unknown-id',
-        name: productName,
-        price: unitPrice,
-        image: itemImage,
-        quantity: qty,
-        product: {
-          _id: prodId,
-          name: productName,
-          price: unitPrice,
-          image: itemImage
-        }
-      });
-
-      // Deduct inventory if product exists in DB
-      if (product && product.countInStock !== undefined) {
-        await ProductModel.findByIdAndUpdate(product._id, {
-          countInStock: Math.max(0, product.countInStock - qty),
-          isAvailable: (product.countInStock - qty) > 0
-        });
-      }
+    // دریافت تصویر رسید پرداخت (از فایل آپلود شده یا از بدنه درخواست)
+    let receiptUrl = '';
+    if (req.file) {
+      receiptUrl = `/uploads/receipts/${req.file.filename}`;
+    } else if (receiptBody) {
+      receiptUrl = receiptBody;
     }
 
-    const newOrder = await OrderModel.create({
-      userId: user ? user._id : 'guest-user',
-      buyerName: finalBuyerName,
-      address: finalAddress,
-      phone: finalPhone,
-      products: processedProducts,
-      items: processedProducts,
+    const initialStatus = receiptUrl ? 'payment_submitted' : 'pending';
+    const paymentStatus = receiptUrl ? 'submitted' : 'pending';
+
+    const order = await Order.create({
+      name: name || user?.name || 'مشتری',
+      phone: phone || user?.phone || '',
+      address: address || '',
+      postalCode: postalCode || '',
+      postTrackingCode: req.body.postTrackingCode || '',
+      state: initialStatus,
+      paymentStatus,
+      paymentReceipt: receiptUrl,
+      paymentReceiptDate: receiptUrl ? new Date() : null,
+      products: items,
       totalPrice,
-      paymentMethod,
-      status: 'processing',
-      notes
+      time: new Date()
     });
 
-    // Clear cart if user logged in
     if (user) {
-      await CartModel.findOneAndUpdate({ userId: user._id }, { products: [], items: [], totalPrice: 0 });
+      await Cart.findOneAndUpdate({ userId: user._id }, { products: [], totalPrice: 0 });
     }
 
-    return successResponse(res, 201, 'سفارش شما با موفقیت ثبت گردید', newOrder);
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Get logged-in user orders
- * GET /api/orders
- */
-export const getMyOrders = async (req, res, next) => {
-  try {
-    const orders = await OrderModel.find({ userId: req.user._id });
-    return successResponse(res, 200, 'لیست سفارش‌های شما با موفقیت دریافت شد', orders);
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Get single order by ID
- * GET /api/orders/:id
- */
-export const getOrderById = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const order = await OrderModel.findById(id);
-
-    if (!order) {
-      return errorResponse(res, 404, 'سفارش با این شناسه یافت نشد');
-    }
-
-    // Access check: Only owner or admin
-    if (req.user && req.user.role !== 'admin' && order.userId !== req.user._id) {
-      return errorResponse(res, 403, 'دسترسی غیرمجاز به فاکتور و اطلاعات این سفارش');
-    }
-
-    return successResponse(res, 200, 'جزئیات سفارش دریافت شد', order);
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Update order status (Admin only)
- * PUT /api/orders/:id/status
- */
-export const updateOrderStatus = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { status, orderStatus } = req.body;
-    const finalStatus = status || orderStatus;
-
-    const updated = await OrderModel.findByIdAndUpdate(id, {
-      status: finalStatus,
-      orderStatus: finalStatus
+    return res.status(201).json({
+      success: true,
+      message: 'سفارش با موفقیت ثبت شد',
+      data: order
     });
-
-    if (!updated) {
-      return errorResponse(res, 404, 'سفارش یافت نشد');
-    }
-
-    return successResponse(res, 200, 'وضعیت سفارش با موفقیت به‌روزرسانی شد', updated);
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Pay order
- * POST /api/orders/:id/pay
- */
-export const payOrder = async (req, res, next) => {
+// ارسال یا آپلود رسید پرداخت برای سفارش ثبت‌شده
+export const uploadPaymentReceipt = async (req, res) => {
   try {
-    const { id } = req.params;
-    const order = await OrderModel.findById(id);
+    const orderId = req.params.id;
+    const { receiptImage, paymentReceipt } = req.body;
 
-    if (!order) {
-      return errorResponse(res, 404, 'سفارش یافت نشد');
+    let receiptUrl = '';
+    if (req.file) {
+      receiptUrl = `/uploads/receipts/${req.file.filename}`;
+    } else if (receiptImage || paymentReceipt) {
+      receiptUrl = receiptImage || paymentReceipt;
     }
 
-    const updated = await OrderModel.findByIdAndUpdate(id, {
-      paymentStatus: 'paid',
-      paidAt: new Date().toISOString(),
-      status: 'processing'
-    });
+    if (!receiptUrl) {
+      return res.status(400).json({ success: false, message: 'فایل یا تصویر رسید پرداخت الزامی است' });
+    }
 
-    return successResponse(res, 200, 'پرداخت سفارش با موفقیت ثبت شد', updated);
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'سفارش یافت نشد' });
+    }
+
+    // بررسی دسترسی (اگر ادمین نیست، فقط سفارش‌های با شماره خودش را دستکاری کند)
+    if (req.user?.role !== 'admin' && !req.user?.admin && order.phone !== req.user?.phone) {
+      return res.status(403).json({ success: false, message: 'شما مجاز به تغییر این سفارش نیستید' });
+    }
+
+    order.paymentReceipt = receiptUrl;
+    order.paymentReceiptDate = new Date();
+    order.paymentStatus = 'submitted';
+    order.state = 'payment_submitted';
+    await order.save();
+
+    return res.json({
+      success: true,
+      message: 'رسید پرداخت با موفقیت ارسال شد و در انتظار تایید مدیریت است',
+      data: order
+    });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// بررسی، تایید یا رد رسید پرداخت توسط ادمین
+export const verifyPayment = async (req, res) => {
+  try {
+    const { status, adminNote, state, postTrackingCode, postalTrackingCode } = req.body; // status: 'approved' | 'rejected'
+
+    if (!status || !['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'وضعیت باید approved یا rejected باشد' });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'سفارش یافت نشد' });
+    }
+
+    const updateFields = {};
+    if (status === 'approved') {
+      updateFields.paymentStatus = 'approved';
+      updateFields.state = state || 'processing';
+      updateFields.adminNote = adminNote || 'رسید پرداخت تایید شد و سفارش در حال آماده‌سازی است';
+    } else {
+      updateFields.paymentStatus = 'rejected';
+      updateFields.state = state || 'pending';
+      updateFields.adminNote = adminNote || 'رسید پرداخت نامعتبر تشخیص داده شد. لطفاً مجدداً رسید معتبر ارسال فرمایید';
+    }
+
+    if (postTrackingCode !== undefined) updateFields.postTrackingCode = postTrackingCode;
+    if (postalTrackingCode !== undefined) updateFields.postTrackingCode = postalTrackingCode;
+
+    const updatedOrder = await Order.findByIdAndUpdate(req.params.id, updateFields, { new: true });
+
+    return res.json({
+      success: true,
+      message: status === 'approved' ? 'رسید پرداخت با موفقیت تایید شد' : 'رسید پرداخت رد شد',
+      data: updatedOrder
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// پیگیری وضعیت سفارش با کد رهگیری پستی
+export const getOrderByTrackingCode = async (req, res) => {
+  try {
+    const postCode = req.params.postTrackingCode || req.params.trackingCode || req.params.code;
+    let order = await Order.findOne({ postTrackingCode: postCode });
+    if (!order) {
+      order = await Order.findById(postCode).catch(() => null);
+    }
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'سفارشی با این کد رهگیری پستی یافت نشد' });
+    }
+    return res.json({ success: true, data: order });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// دریافت سفارش‌های کاربر / یا همه سفارش‌ها برای ادمین
+export const getMyOrders = async (req, res) => {
+  try {
+    const filter = (req.user?.role === 'admin' || req.user?.admin) ? {} : { phone: req.user?.phone };
+    const orders = await Order.find(filter).sort({ createdAt: -1 });
+    return res.json({ success: true, data: orders });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// دریافت سفارش با شناسه
+export const getOrderById = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'سفارش یافت نشد' });
+    }
+    return res.json({ success: true, data: order });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// تغییر وضعیت سفارش و ثبت دستی کد رهگیری مرسوله پستی (توسط ادمین)
+export const updateOrderStatus = async (req, res) => {
+  try {
+    const { state, status, adminNote, postTrackingCode, postalTrackingCode, paymentStatus } = req.body;
+    const updateData = {};
+
+    if (state || status) updateData.state = state || status;
+    if (adminNote !== undefined) updateData.adminNote = adminNote;
+    if (postTrackingCode !== undefined) updateData.postTrackingCode = postTrackingCode;
+    if (postalTrackingCode !== undefined) updateData.postTrackingCode = postalTrackingCode;
+    if (paymentStatus !== undefined) updateData.paymentStatus = paymentStatus;
+
+    const order = await Order.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'سفارش یافت نشد' });
+    }
+    return res.json({ 
+      success: true, 
+      message: 'اطلاعات سفارش و کد رهگیری پستی با موفقیت توسط ادمین به‌روزرسانی شد', 
+      data: order 
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

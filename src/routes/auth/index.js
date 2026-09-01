@@ -8,23 +8,21 @@ import {
 } from './controller.js';
 import {
   validateRegister,
-  validateLogin,
-  validateUpdateProfile,
-  validateChangePassword
+  validateLogin
 } from './validation.js';
-import { validateRequest } from '../../middlewares/validate.middleware.js';
-import { protect } from '../../middlewares/auth.middleware.js';
-import { authLimiter } from '../../middlewares/rateLimit.middleware.js';
+import { validateRequest } from '../../middlewares/validate.js';
+import { isAuth } from '../../middlewares/isAuth.js';
+import { authLimiter } from '../../middlewares/rateLimit.js';
 
 const router = Router();
 
-// Public routes with rate limiting protection
+// Public routes with rate limiting protection and validation
 router.post('/register', authLimiter, validateRequest(validateRegister), register);
 router.post('/login', authLimiter, validateRequest(validateLogin), login);
 
 // Protected routes
-router.get('/me', protect, getMe);
-router.put('/profile', protect, validateRequest(validateUpdateProfile), updateProfile);
-router.put('/change-password', protect, validateRequest(validateChangePassword), changePassword);
+router.get('/me', isAuth, getMe);
+router.put('/profile', isAuth, updateProfile);
+router.put('/change-password', isAuth, changePassword);
 
 export default router;

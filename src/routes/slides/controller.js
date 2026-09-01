@@ -1,119 +1,65 @@
-import { SlideModel } from '../../models/slide.js';
-import { successResponse, errorResponse } from '../../utils/response.js';
-import { formatImageUrl } from '../../utils/format.js';
+import { Slide } from '../../models/slide.js';
 
-const prepareSlideResponse = (slide, req) => {
-  if (!slide) return slide;
-  const image = formatImageUrl(slide.image, req);
-  return {
-    ...slide,
-    image,
-    imageUrl: image,
-    fullImageUrl: image
-  };
-};
-
-/**
- * Get all slides (Public)
- * GET /api/slides
- */
-export const getSlides = async (req, res, next) => {
+// دریافت اسلایدها
+export const getSlides = async (req, res) => {
   try {
-    const slides = await SlideModel.find();
-    const formatted = slides.map(s => prepareSlideResponse(s, req));
-    return successResponse(res, 200, 'اسلایدرها با موفقیت دریافت شدند', formatted);
+    const slides = await Slide.find();
+    return res.json({ success: true, data: slides });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Get slide by ID (Public)
- * GET /api/slides/:id
- */
-export const getSlideById = async (req, res, next) => {
+// دریافت اسلاید با شناسه
+export const getSlideById = async (req, res) => {
   try {
-    const { id } = req.params;
-    const slide = await SlideModel.findById(id);
+    const slide = await Slide.findById(req.params.id);
     if (!slide) {
-      return errorResponse(res, 404, 'اسلاید یافت نشد');
+      return res.status(404).json({ success: false, message: 'اسلاید یافت نشد' });
     }
-    return successResponse(res, 200, 'اسلاید با موفقیت دریافت شد', prepareSlideResponse(slide, req));
+    return res.json({ success: true, data: slide });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Create slide (با آپلود فایل مالتر، Base64 یا آدرس تصویر)
- * ذخیره فیزیکی روی دیسک به عنوان فایل تصویری (نه به صورت متن طولانی در دیتابیس)
- * POST /api/slides
- */
-export const createSlide = async (req, res, next) => {
+// ایجاد اسلاید (ادمین)
+export const createSlide = async (req, res) => {
   try {
-    let imageUrl = '';
-
-    if (req.file) {
-      imageUrl = `/uploads/slides/${req.file.filename}`;
-    } else if (req.body) {
-      imageUrl = req.body.image || req.body.imageBase64 || '';
+    const image = req.file ? `/uploads/slides/${req.file.filename}` : req.body.image;
+    if (!image) {
+      return res.status(400).json({ success: false, message: 'تصویر اسلاید الزامی است' });
     }
-
-    if (!imageUrl) {
-      return errorResponse(res, 400, 'تصویر اسلاید الزامی است (از طریق فیلد image در فرم، مالتر یا کد Base64)');
-    }
-
-    const newSlide = await SlideModel.create({ image: imageUrl });
-    return successResponse(res, 201, 'اسلاید جدید با موفقیت ایجاد و تصویر روی دیسک ذخیره شد', prepareSlideResponse(newSlide, req));
+    const slide = await Slide.create({ image });
+    return res.status(201).json({ success: true, message: 'اسلاید با موفقیت ثبت شد', data: slide });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Update slide image
- * PUT /api/slides/:id
- */
-export const updateSlide = async (req, res, next) => {
+// ویرایش اسلاید (ادمین)
+export const updateSlide = async (req, res) => {
   try {
-    const { id } = req.params;
-    let updateData = {};
-
-    if (req.file) {
-      updateData.image = `/uploads/slides/${req.file.filename}`;
-    } else if (req.body) {
-      const img = req.body.image || req.body.imageBase64;
-      if (img !== undefined) {
-        updateData.image = img;
-      }
+    const image = req.file ? `/uploads/slides/${req.file.filename}` : req.body.image;
+    const slide = await Slide.findByIdAndUpdate(req.params.id, { image });
+    if (!slide) {
+      return res.status(404).json({ success: false, message: 'اسلاید یافت نشد' });
     }
-
-    const updated = await SlideModel.findByIdAndUpdate(id, updateData);
-    if (!updated) {
-      return errorResponse(res, 404, 'اسلاید یافت نشد');
-    }
-
-    return successResponse(res, 200, 'اسلاید با موفقیت به‌روزرسانی شد', prepareSlideResponse(updated, req));
+    return res.json({ success: true, message: 'اسلاید ویرایش شد', data: slide });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * Delete slide
- * DELETE /api/slides/:id
- */
-export const deleteSlide = async (req, res, next) => {
+// حذف اسلاید (ادمین)
+export const deleteSlide = async (req, res) => {
   try {
-    const { id } = req.params;
-    const deleted = await SlideModel.findByIdAndDelete(id);
-
+    const deleted = await Slide.findByIdAndDelete(req.params.id);
     if (!deleted) {
-      return errorResponse(res, 404, 'اسلاید یافت نشد');
+      return res.status(404).json({ success: false, message: 'اسلاید یافت نشد' });
     }
-
-    return successResponse(res, 200, 'اسلاید حذف گردید', { id });
+    return res.json({ success: true, message: 'اسلاید حذف شد' });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -5,20 +5,19 @@ import {
   replyReview,
   deleteReview
 } from './controller.js';
-import { validateCreateReview, validateReplyReview } from './validation.js';
-import { validateRequest } from '../../middlewares/validate.middleware.js';
-import { protect, adminOnly, optionalAuth } from '../../middlewares/auth.middleware.js';
+import { isAuth } from '../../middlewares/isAuth.js';
+import { isAdmin } from '../../middlewares/isAdmin.js';
 
 const router = Router();
 
-// Public / optionally authenticated
-router.get('/', optionalAuth, getProductReviews);
+// Public routes
+router.get('/', getProductReviews);
 
 // Protected routes
-router.post('/', protect, validateRequest(validateCreateReview), createReview);
+router.post('/', isAuth, createReview);
 
 // Admin-only routes
-router.post('/:id/reply', protect, adminOnly, validateRequest(validateReplyReview), replyReview);
-router.delete('/:id', protect, adminOnly, deleteReview);
+router.post('/:id/reply', isAdmin, replyReview);
+router.delete('/:id', isAdmin, deleteReview);
 
 export default router;

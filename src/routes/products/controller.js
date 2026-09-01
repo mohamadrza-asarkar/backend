@@ -1,245 +1,90 @@
-import fs from 'fs';
-import { ProductModel } from '../../models/product.js';
-import { successResponse, errorResponse, paginateResponse } from '../../utils/response.js';
-import { formatImageUrl } from '../../utils/format.js';
+import { Product } from '../../models/product.js';
 
-/**
- * Format product object to include full server image URL
- */
-const prepareProductResponse = (product, req) => {
-  if (!product) return product;
-  const image = formatImageUrl(product.image, req);
-  return {
-    ...product,
-    image,
-    imageUrl: image,
-    fullImageUrl: image
-  };
-};
-
-
-/**
- * دریافت لیست محصولات با قابلیت فیلتر، جستجو با کوئری، مرتب‌سازی و صفحه‌بندی
- * GET /api/products
- */
-export const getProducts = async (req, res, next) => {
+// دریافت لیست محصولات
+export const getProducts = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 10,
-      search,
-      q,
-      isAvailable,
-      isAmazing,
-      minPrice,
-      maxPrice,
-      sortBy = 'newest'
-    } = req.query;
-
+    const { search, q, isAvailable, isAmazing } = req.query;
     const filter = {};
     if (search || q) filter.search = search || q;
     if (isAvailable !== undefined) filter.isAvailable = isAvailable;
     if (isAmazing !== undefined) filter.isAmazing = isAmazing;
-    if (minPrice !== undefined) filter.minPrice = Number(minPrice);
-    if (maxPrice !== undefined) filter.maxPrice = Number(maxPrice);
-    if (sortBy) filter.sortBy = sortBy;
 
-    const allProducts = await ProductModel.find(filter);
-    const total = allProducts.length;
-
-    const startIndex = (Number(page) - 1) * Number(limit);
-    const paginatedItems = allProducts
-      .slice(startIndex, startIndex + Number(limit))
-      .map(p => prepareProductResponse(p, req));
-
-    return paginateResponse(res, paginatedItems, page, limit, total, 'لیست محصولات برنج با موفقیت دریافت شد');
+    const products = await Product.find(filter);
+    return res.json({ success: true, data: products });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * دریافت لیست محصولات شگفت‌انگیز (پیشنهادهای ویژه برنج)
- * GET /api/products/amazing
- */
-export const getAmazingProducts = async (req, res, next) => {
+// دریافت محصولات شگفت‌انگیز
+export const getAmazingProducts = async (req, res) => {
   try {
-    const { page = 1, limit = 20, sortBy = 'discount' } = req.query;
-
-    const allAmazing = await ProductModel.find({
-      isAmazing: true,
-      sortBy: sortBy
-    });
-
-    const total = allAmazing.length;
-    const startIndex = (Number(page) - 1) * Number(limit);
-    const paginatedItems = allAmazing
-      .slice(startIndex, startIndex + Number(limit))
-      .map(p => prepareProductResponse(p, req));
-
-    return successResponse(res, 200, 'لیست محصولات شگفت‌انگیز با موفقیت دریافت شد', {
-      total,
-      page: Number(page),
-      limit: Number(limit),
-      products: paginatedItems
-    });
+    const products = await Product.find({ isAmazing: true });
+    return res.json({ success: true, data: products });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * جستجوی پیشرفته محصولات با کوئری
- * GET /api/products/search?q=...&minPrice=...&maxPrice=...&isAvailable=...
- */
-export const searchProducts = async (req, res, next) => {
+// جستجوی محصول
+export const searchProducts = async (req, res) => {
   try {
-    const {
-      q = '',
-      isAvailable,
-      isAmazing,
-      minPrice,
-      maxPrice,
-      sortBy = 'newest',
-      page = 1,
-      limit = 20
-    } = req.query;
-
-    const filter = { search: q };
-    if (isAvailable !== undefined) filter.isAvailable = isAvailable;
-    if (isAmazing !== undefined) filter.isAmazing = isAmazing;
-    if (minPrice !== undefined) filter.minPrice = Number(minPrice);
-    if (maxPrice !== undefined) filter.maxPrice = Number(maxPrice);
-    if (sortBy) filter.sortBy = sortBy;
-
-    const matchingProducts = await ProductModel.find(filter);
-    const total = matchingProducts.length;
-
-    const startIndex = (Number(page) - 1) * Number(limit);
-    const paginatedItems = matchingProducts
-      .slice(startIndex, startIndex + Number(limit))
-      .map(p => prepareProductResponse(p, req));
-
-    return successResponse(res, 200, `نتایج جستجو برای عبارت "${q}" با موفقیت دریافت شد`, {
-      query: q,
-      totalResults: total,
-      page: Number(page),
-      limit: Number(limit),
-      products: paginatedItems
-    });
+    const products = await Product.find({ search: req.query.q || '' });
+    return res.json({ success: true, data: products });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * دریافت اطلاعات یک محصول بر اساس شناسه
- * GET /api/products/:id
- */
-export const getProductById = async (req, res, next) => {
+// دریافت محصول با شناسه
+export const getProductById = async (req, res) => {
   try {
-    const { id } = req.params;
-    const product = await ProductModel.findById(id);
-
+    const product = await Product.findById(req.params.id);
     if (!product) {
-      return errorResponse(res, 404, 'محصول مورد نظر یافت نشد');
+      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
     }
-
-    return successResponse(res, 200, 'اطلاعات محصول با موفقیت دریافت شد', prepareProductResponse(product, req));
+    return res.json({ success: true, data: product });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * ایجاد محصول جدید (مخصوص مدیر / Admin)
- * ذخیره‌سازی عکس به صورت فایل در هاست و ثبت مسیر در دیتابیس
- * و نشان‌گذاری به عنوان محصول شگفت‌انگیز (isAmazing)
- * POST /api/products
- */
-export const createProduct = async (req, res, next) => {
+// افزودن محصول جدید (ادمین)
+export const createProduct = async (req, res) => {
   try {
-    const productData = { ...req.body };
-
-    // If file uploaded via Multer, use its path.
-    if (req.file) {
-      productData.image = `/uploads/products/${req.file.filename}`;
-    }
-
-    // Process amazing offer flags
-    if (productData.isAmazing !== undefined) {
-      productData.isAmazing = productData.isAmazing === 'true' || productData.isAmazing === true;
-    }
-
-    if (productData.originalPrice !== undefined) {
-      productData.originalPrice = Number(productData.originalPrice);
-    }
-    if (productData.discountPercent !== undefined) {
-      productData.discountPercent = Number(productData.discountPercent);
-    }
-
-    const createdProduct = await ProductModel.create(productData);
-
-    const message = createdProduct.isAmazing 
-      ? 'محصول شگفت‌انگیز با موفقیت ثبت و تصویر در هاست ذخیره شد'
-      : 'محصول برنج جدید با موفقیت ایجاد و تصویر در هاست ذخیره شد';
-
-    return successResponse(res, 201, message, prepareProductResponse(createdProduct, req));
+    const data = { ...req.body };
+    if (req.file) data.image = `/uploads/products/${req.file.filename}`;
+    const product = await Product.create(data);
+    return res.status(201).json({ success: true, message: 'محصول با موفقیت ثبت شد', data: product });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * ویرایش محصول موجود (مخصوص مدیر / Admin)
- * PUT /api/products/:id
- */
-export const updateProduct = async (req, res, next) => {
+// ویرایش محصول (ادمین)
+export const updateProduct = async (req, res) => {
   try {
-    const { id } = req.params;
-    const updateData = { ...req.body };
-
-    // If file uploaded via Multer, use its path
-    if (req.file) {
-      updateData.image = `/uploads/products/${req.file.filename}`;
+    const data = { ...req.body };
+    if (req.file) data.image = `/uploads/products/${req.file.filename}`;
+    const product = await Product.findByIdAndUpdate(req.params.id, data);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
     }
-
-    if (updateData.isAmazing !== undefined) {
-      updateData.isAmazing = updateData.isAmazing === 'true' || updateData.isAmazing === true;
-    }
-    if (updateData.originalPrice !== undefined) {
-      updateData.originalPrice = Number(updateData.originalPrice);
-    }
-    if (updateData.discountPercent !== undefined) {
-      updateData.discountPercent = Number(updateData.discountPercent);
-    }
-
-    const updated = await ProductModel.findByIdAndUpdate(id, updateData);
-    if (!updated) {
-      return errorResponse(res, 404, 'محصول مورد نظر جهت ویرایش یافت نشد');
-    }
-
-    return successResponse(res, 200, 'محصول با موفقیت به‌روزرسانی شد', prepareProductResponse(updated, req));
+    return res.json({ success: true, message: 'محصول با موفقیت ویرایش شد', data: product });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * حذف محصول (مخصوص مدیر / Admin)
- * DELETE /api/products/:id
- */
-export const deleteProduct = async (req, res, next) => {
+// حذف محصول (ادمین)
+export const deleteProduct = async (req, res) => {
   try {
-    const { id } = req.params;
-    const deleted = await ProductModel.findByIdAndDelete(id);
-
-    if (!deleted) {
-      return errorResponse(res, 404, 'محصول جهت حذف یافت نشد');
+    const product = await Product.findByIdAndDelete(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
     }
-
-    return successResponse(res, 200, 'محصول با موفقیت حذف گردید', { id });
+    return res.json({ success: true, message: 'محصول با موفقیت حذف شد' });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

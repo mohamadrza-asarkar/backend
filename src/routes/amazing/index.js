@@ -6,10 +6,8 @@ import {
   updateAmazingProduct,
   deleteAmazingProduct
 } from './controller.js';
-import { validateProduct, validateProductUpdate } from '../products/validation.js';
-import { validateRequest } from '../../middlewares/validate.middleware.js';
-import { protect, adminOnly } from '../../middlewares/auth.middleware.js';
-import { uploadProduct } from '../../middlewares/upload.middleware.js';
+import { isAdmin } from '../../middlewares/isAdmin.js';
+import { uploadProduct } from '../../middlewares/upload.js';
 
 const router = Router();
 
@@ -18,8 +16,8 @@ router.get('/', getAmazingProducts);
 router.get('/:id', getAmazingProductById);
 
 // Admin-only management with Multer/Base64 image upload
-router.post('/', protect, adminOnly, uploadProduct.single('image'), validateRequest(validateProduct), createAmazingProduct);
-router.put('/:id', protect, adminOnly, uploadProduct.single('image'), validateRequest(validateProductUpdate), updateAmazingProduct);
-router.delete('/:id', protect, adminOnly, deleteAmazingProduct);
+router.post('/', isAdmin, uploadProduct.single('image'), createAmazingProduct);
+router.put('/:id', isAdmin, uploadProduct.single('image'), updateAmazingProduct);
+router.delete('/:id', isAdmin, deleteAmazingProduct);
 
 export default router;
