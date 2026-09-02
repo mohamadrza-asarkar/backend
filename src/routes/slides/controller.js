@@ -1,4 +1,28 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { Slide } from '../../models/slide.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// تابع کمکی برای حذف فیزیکی فایل تصویر از هاست
+const deleteImageFile = (imagePath) => {
+  if (!imagePath || typeof imagePath !== 'string') return;
+  // اگر فایل در پوشه uploads قرار دارد
+  if (imagePath.startsWith('/uploads/') || imagePath.startsWith('uploads/')) {
+    const cleanPath = imagePath.replace(/^\//, '');
+    const absolutePath = path.join(__dirname, '../../../public', cleanPath);
+    if (fs.existsSync(absolutePath)) {
+      try {
+        fs.unlinkSync(absolutePath);
+        console.log(`🗑️ Image file deleted: ${absolutePath}`);
+      } catch (err) {
+        console.error(`❌ Failed to delete image file: ${absolutePath}`, err.message);
+      }
+    }
+  }
+};
 
 // دریافت اسلایدها
 export const getSlides = async (req, res) => {
@@ -40,11 +64,20 @@ export const createSlide = async (req, res) => {
 // ویرایش اسلاید (ادمین)
 export const updateSlide = async (req, res) => {
   try {
-    const image = req.file ? `/uploads/slides/${req.file.filename}` : req.body.image;
-    const slide = await Slide.findByIdAndUpdate(req.params.id, { image });
+    const slide = await Slide.findById(req.params.id);
     if (!slide) {
       return res.status(404).json({ success: false, message: 'اسلاید یافت نشد' });
     }
+
+    const newImage = req.file ? `/uploads/slides/${req.file.filename}` : req.body.image;
+    
+    // اگر تصویر جدید آپلود شده بود، تصویر قبلی حذف شود
+    if (newImage && newImage !== slide.image) {
+      deleteImageFile(slide.image);
+      slide.image = newImage;
+    }
+
+    await slide.save();
     return res.json({ success: true, message: 'اسلاید ویرایش شد', data: slide });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -54,11 +87,18 @@ export const updateSlide = async (req, res) => {
 // حذف اسلاید (ادمین)
 export const deleteSlide = async (req, res) => {
   try {
-    const deleted = await Slide.findByIdAndDelete(req.params.id);
-    if (!deleted) {
+    const slide = await Slide.findById(req.params.id);
+    if (!slide) {
       return res.status(404).json({ success: false, message: 'اسلاید یافت نشد' });
     }
-    return res.json({ success: true, message: 'اسلاید حذف شد' });
+
+    // حذف فیزیکی فایل تصویر اسلاید از دیسک/سرور
+    deleteImageFile(slide.image);
+
+    // حذف رکورد از دیتابیس
+    await Slide.findByIdAndDelete(req.params.id);
+
+    return res.json({ success: true, message: 'اسلاید و تصویر مربوطه با موفقیت حذف شدند' });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

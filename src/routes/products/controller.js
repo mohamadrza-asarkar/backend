@@ -1,4 +1,27 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { Product } from '../../models/product.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// تابع کمکی برای حذف فیزیکی فایل تصویر محصول از هاست
+const deleteImageFile = (imagePath) => {
+  if (!imagePath || typeof imagePath !== 'string') return;
+  if (imagePath.startsWith('/uploads/') || imagePath.startsWith('uploads/')) {
+    const cleanPath = imagePath.replace(/^\//, '');
+    const absolutePath = path.join(__dirname, '../../../public', cleanPath);
+    if (fs.existsSync(absolutePath)) {
+      try {
+        fs.unlinkSync(absolutePath);
+        console.log(`🗑️ Product image deleted: ${absolutePath}`);
+      } catch (err) {
+        console.error(`❌ Failed to delete product image: ${absolutePath}`, err.message);
+      }
+    }
+  }
+};
 
 // دریافت لیست محصولات
 export const getProducts = async (req, res) => {
@@ -64,13 +87,23 @@ export const createProduct = async (req, res) => {
 // ویرایش محصول (ادمین)
 export const updateProduct = async (req, res) => {
   try {
-    const data = { ...req.body };
-    if (req.file) data.image = `/uploads/products/${req.file.filename}`;
-    const product = await Product.findByIdAndUpdate(req.params.id, data);
+    const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
     }
-    return res.json({ success: true, message: 'محصول با موفقیت ویرایش شد', data: product });
+
+    const data = { ...req.body };
+    if (req.file) {
+      const newImage = `/uploads/products/${req.file.filename}`;
+      // حذف تصویر قبلی محصول
+      deleteImageFile(product.image);
+      data.image = newImage;
+    } else if (data.image && data.image !== product.image) {
+      deleteImageFile(product.image);
+    }
+
+    const updated = await Product.findByIdAndUpdate(req.params.id, data, { new: true });
+    return res.json({ success: true, message: 'محصول با موفقیت ویرایش شد', data: updated });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -79,11 +112,17 @@ export const updateProduct = async (req, res) => {
 // حذف محصول (ادمین)
 export const deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findByIdAndDelete(req.params.id);
+    const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
     }
-    return res.json({ success: true, message: 'محصول با موفقیت حذف شد' });
+
+    // حذف فیزیکی تصویر محصول از هاست
+    deleteImageFile(product.image);
+
+    // حذف رکورد از دیتابیس
+    await Product.findByIdAndDelete(req.params.id);
+    return res.json({ success: true, message: 'محصول و تصویر مربوطه با موفقیت حذف شد' });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
