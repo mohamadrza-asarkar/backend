@@ -1,4 +1,3 @@
-import './src/models/db.js';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -48,10 +47,9 @@ app.use(errorHandler);
 // اجرای سرور و اتصال به دیتابیس
 export async function startServer() {
   try {
-    if (process.env.MONGODB_URI) {
-      await mongoose.connect(MONGODB_URI);
-      console.log('✅ Connected to DB');
-    }
+    // اتصال اجباری و واقعی به دیتابیس بدون هیچگونه Fallback
+    await mongoose.connect(MONGODB_URI);
+    console.log('✅ Connected to DB (Real MongoDB Instance)');
 
     const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);

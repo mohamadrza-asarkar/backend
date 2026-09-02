@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import './db.js';
 
 export const cartSchema = new mongoose.Schema({
   userId: { type: String, default: 'guest' },

@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import './db.js';
 
 export const reviewSchema = new mongoose.Schema({
   productId: { type: String, required: true },

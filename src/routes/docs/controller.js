@@ -1,4 +1,4 @@
-import { db } from '../../models/db.js';
+import mongoose from 'mongoose';
 
 export const getHealthCheck = (req, res) => {
   res.json({
@@ -37,14 +37,23 @@ export const getSystemMetrics = (req, res) => {
   });
 };
 
-export const getCollectionDocs = (req, res) => {
-  const { name } = req.params;
-  const items = db[name] || [];
-  res.json({ collection: name, count: items.length, sample: items.slice(0, 3) });
+export const getCollectionDocs = async (req, res) => {
+  try {
+    const { name } = req.params;
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'Database disconnected' });
+    }
+    const collection = mongoose.connection.db.collection(name);
+    const count = await collection.countDocuments();
+    const sample = await collection.find({}).limit(3).toArray();
+    res.json({ collection: name, count, sample });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 export const resetDatabase = (req, res) => {
-  res.json({ success: true, message: 'Database reset' });
+  res.json({ success: true, message: 'Database reset disabled in real DB mode' });
 };
 
 export const generateTestToken = (req, res) => {
