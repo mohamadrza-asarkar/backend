@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node --watch index.js",
     "start": "node index.js",
+    "build": "echo 'Backend service ready'",
     "lint": "eslint ."
   },
   "dependencies": {
