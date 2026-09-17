@@ -168,6 +168,22 @@
   * ویرایش: `PUT /api/amazing-products/:id` (ورودی Form-Data شامل عکس با کلید `image`)
   * حذف: `DELETE /api/amazing-products/:id`
 
+### ج) فعال/غیرفعال کردن وضعیت شگفت‌انگیز یک محصول موجود (مخصوص ادمین)
+* **مسیر:** `PUT /api/amazing-products/toggle/:id`
+* **هدر الزامی:** `Authorization: Bearer <ADMIN_TOKEN>`
+* **پاسخ موفق (Status 200):**
+  ```json
+  {
+    "success": true,
+    "message": "محصول به شگفت‌انگیزها اضافه شد",
+    "data": {
+      "_id": "60c72b2f...",
+      "name": "برنج هاشمی",
+      "isAmazing": true
+    }
+  }
+  ```
+
 ---
 
 ## 4. سبد خرید (Cart)

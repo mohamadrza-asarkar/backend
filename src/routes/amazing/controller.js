@@ -26,10 +26,13 @@ export const getAmazingProductById = async (req, res) => {
 // ایجاد محصول شگفت‌انگیز (ادمین)
 export const createAmazingProduct = async (req, res) => {
   try {
+    // ابتدا شگفت‌انگیز بودن سایر محصولات را لغو می‌کنیم
+    await Product.updateMany({}, { isAmazing: false });
+
     const data = { ...req.body, isAmazing: true };
     if (req.file) data.image = `/uploads/products/${req.file.filename}`;
     const product = await Product.create(data);
-    return res.status(201).json({ success: true, message: 'محصول شگفت‌انگیز ثبت شد', data: product });
+    return res.status(201).json({ success: true, message: 'محصول شگفت‌انگیز ثبت شد و شگفت‌انگیزهای قبلی غیرفعال شدند', data: product });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -58,6 +61,34 @@ export const deleteAmazingProduct = async (req, res) => {
       return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
     }
     return res.json({ success: true, message: 'محصول حذف شد' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// فعال/غیرفعال کردن شگفت‌انگیز بودن یک محصول (ادمین)
+export const toggleAmazingProduct = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
+    }
+
+    const nextState = !product.isAmazing;
+
+    if (nextState === true) {
+      // اگر کاربر قصد فعال کردن شگفت‌انگیز برای این محصول را دارد، ابتدا همه موارد قبلی را لغو می‌کنیم
+      await Product.updateMany({}, { isAmazing: false });
+    }
+
+    product.isAmazing = nextState;
+    await product.save();
+
+    return res.json({
+      success: true,
+      message: product.isAmazing ? 'محصول به عنوان تنها محصول شگفت‌انگیز تنظیم شد' : 'محصول از شگفت‌انگیزها حذف شد',
+      data: product
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

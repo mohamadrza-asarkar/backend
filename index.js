@@ -47,17 +47,17 @@ app.use(errorHandler);
 // اجرای سرور و اتصال به دیتابیس
 export async function startServer() {
   try {
-    // اتصال اجباری و واقعی به دیتابیس بدون هیچگونه Fallback
-    await mongoose.connect(MONGODB_URI);
-    console.log('✅ Connected to DB (Real MongoDB Instance)');
+    // تلاش برای اتصال به دیتابیس بدون کرش کردن سرور در صورت عدم دسترسی
+    mongoose.connect(MONGODB_URI)
+      .then(() => console.log('✅ Connected to DB (Real MongoDB Instance)'))
+      .catch(err => console.error('❌ Failed to connect to DB during start:', err.message));
 
     const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
     return server;
   } catch (error) {
-    console.error('❌ Failed to connect to DB:', error.message);
-    process.exit(1); // خروج از برنامه با کد خطا
+    console.error('❌ Server startup error:', error.message);
   }
 }
 

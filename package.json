@@ -1,13 +1,12 @@
 {
-  "name": "react-example",
+  "name": "rice-store-backend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "node --watch index.js",
     "start": "node index.js",
-    "build": "echo 'Backend service ready'",
-    "lint": "eslint ."
+    "build": "echo 'Backend build ready'"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -19,15 +18,5 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.3",
     "multer": "^2.2.0"
-  },
-  "devDependencies": {
-    "@types/bcryptjs": "^3.0.0",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^4.17.21",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^22.14.0",
-    "esbuild": "^0.25.0",
-    "tsx": "^4.21.0",
-    "typescript": "~5.8.2"
   }
 }

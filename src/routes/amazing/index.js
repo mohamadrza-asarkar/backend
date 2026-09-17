@@ -4,7 +4,8 @@ import {
   getAmazingProductById,
   createAmazingProduct,
   updateAmazingProduct,
-  deleteAmazingProduct
+  deleteAmazingProduct,
+  toggleAmazingProduct
 } from './controller.js';
 import { isAdmin } from '../../middlewares/isAdmin.js';
 import { uploadProduct } from '../../middlewares/upload.js';
@@ -19,5 +20,6 @@ router.get('/:id', getAmazingProductById);
 router.post('/', isAdmin, uploadProduct.single('image'), createAmazingProduct);
 router.put('/:id', isAdmin, uploadProduct.single('image'), updateAmazingProduct);
 router.delete('/:id', isAdmin, deleteAmazingProduct);
+router.put('/toggle/:id', isAdmin, toggleAmazingProduct);
 
 export default router;
