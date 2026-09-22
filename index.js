@@ -61,10 +61,7 @@ export async function startServer() {
   }
 }
 
-// اگر فایل مستقیما با node اجرا شود
-const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === __filename;
-if (isDirectRun) {
-  startServer();
-}
+// اجرای مستقیم سرور
+startServer();
 
 export default app;

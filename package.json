@@ -5,11 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch index.js",
-    "start": "pm2-runtime start index.js",
+    "start": "node index.js",
     "build": ":"
   },
   "dependencies": {
-    "@google/genai": "^2.4.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
@@ -17,7 +16,6 @@
     "express-rate-limit": "^8.6.2",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.3",
-    "multer": "^2.2.0",
-    "pm2": "^7.0.4"
+    "multer": "^2.2.0"
   }
 }
