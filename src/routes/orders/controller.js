@@ -14,7 +14,7 @@ export const createOrder = async (req, res) => {
     }
 
     if (!items || !items.length) {
-      return res.status(400).json({ success: false, message: 'محصولی برای ثبت سفارش ارسال نشده است' });
+      return res.status(400).json({ message: 'محصولی برای ثبت سفارش ارسال نشده است' });
     }
 
     const totalPrice = items.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0);
@@ -41,21 +41,16 @@ export const createOrder = async (req, res) => {
       paymentReceipt: receiptUrl,
       paymentReceiptDate: receiptUrl ? new Date() : null,
       products: items,
-      totalPrice,
-      time: new Date()
+      totalPrice
     });
 
     if (user) {
       await Cart.findOneAndUpdate({ userId: user._id }, { products: [], totalPrice: 0 });
     }
 
-    return res.status(201).json({
-      success: true,
-      message: 'سفارش با موفقیت ثبت شد',
-      data: order
-    });
+    return res.status(201).json(order);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -73,17 +68,17 @@ export const uploadPaymentReceipt = async (req, res) => {
     }
 
     if (!receiptUrl) {
-      return res.status(400).json({ success: false, message: 'فایل یا تصویر رسید پرداخت الزامی است' });
+      return res.status(400).json({ message: 'فایل یا تصویر رسید پرداخت الزامی است' });
     }
 
     const order = await Order.findById(orderId);
     if (!order) {
-      return res.status(404).json({ success: false, message: 'سفارش یافت نشد' });
+      return res.status(404).json({ message: 'سفارش یافت نشد' });
     }
 
     // بررسی دسترسی (اگر ادمین نیست، فقط سفارش‌های با شماره خودش را دستکاری کند)
     if (req.user?.role !== 'admin' && !req.user?.admin && order.phone !== req.user?.phone) {
-      return res.status(403).json({ success: false, message: 'شما مجاز به تغییر این سفارش نیستید' });
+      return res.status(403).json({ message: 'شما مجاز به تغییر این سفارش نیستید' });
     }
 
     order.paymentReceipt = receiptUrl;
@@ -92,13 +87,9 @@ export const uploadPaymentReceipt = async (req, res) => {
     order.state = 'payment_submitted';
     await order.save();
 
-    return res.json({
-      success: true,
-      message: 'رسید پرداخت با موفقیت ارسال شد و در انتظار تایید مدیریت است',
-      data: order
-    });
+    return res.json(order);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -108,12 +99,12 @@ export const verifyPayment = async (req, res) => {
     const { status, adminNote, state, postTrackingCode, postalTrackingCode } = req.body; // status: 'approved' | 'rejected'
 
     if (!status || !['approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'وضعیت باید approved یا rejected باشد' });
+      return res.status(400).json({ message: 'وضعیت باید approved یا rejected باشد' });
     }
 
     const order = await Order.findById(req.params.id);
     if (!order) {
-      return res.status(404).json({ success: false, message: 'سفارش یافت نشد' });
+      return res.status(404).json({ message: 'سفارش یافت نشد' });
     }
 
     const updateFields = {};
@@ -132,13 +123,9 @@ export const verifyPayment = async (req, res) => {
 
     const updatedOrder = await Order.findByIdAndUpdate(req.params.id, updateFields, { new: true });
 
-    return res.json({
-      success: true,
-      message: status === 'approved' ? 'رسید پرداخت با موفقیت تایید شد' : 'رسید پرداخت رد شد',
-      data: updatedOrder
-    });
+    return res.json(updatedOrder);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -151,11 +138,11 @@ export const getOrderByTrackingCode = async (req, res) => {
       order = await Order.findById(postCode).catch(() => null);
     }
     if (!order) {
-      return res.status(404).json({ success: false, message: 'سفارشی با این کد رهگیری پستی یافت نشد' });
+      return res.status(404).json({ message: 'سفارشی با این کد رهگیری پستی یافت نشد' });
     }
-    return res.json({ success: true, data: order });
+    return res.json(order);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -164,9 +151,9 @@ export const getMyOrders = async (req, res) => {
   try {
     const filter = (req.user?.role === 'admin' || req.user?.admin) ? {} : { phone: req.user?.phone };
     const orders = await Order.find(filter).sort({ createdAt: -1 });
-    return res.json({ success: true, data: orders });
+    return res.json(orders);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -175,11 +162,11 @@ export const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
     if (!order) {
-      return res.status(404).json({ success: false, message: 'سفارش یافت نشد' });
+      return res.status(404).json({ message: 'سفارش یافت نشد' });
     }
-    return res.json({ success: true, data: order });
+    return res.json(order);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -197,14 +184,10 @@ export const updateOrderStatus = async (req, res) => {
 
     const order = await Order.findByIdAndUpdate(req.params.id, updateData, { new: true });
     if (!order) {
-      return res.status(404).json({ success: false, message: 'سفارش یافت نشد' });
+      return res.status(404).json({ message: 'سفارش یافت نشد' });
     }
-    return res.json({ 
-      success: true, 
-      message: 'اطلاعات سفارش و کد رهگیری پستی با موفقیت توسط ادمین به‌روزرسانی شد', 
-      data: order 
-    });
+    return res.json(order);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };

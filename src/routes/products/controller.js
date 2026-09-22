@@ -33,9 +33,9 @@ export const getProducts = async (req, res) => {
     if (isAmazing !== undefined) filter.isAmazing = isAmazing;
 
     const products = await Product.find(filter);
-    return res.json({ success: true, data: products });
+    return res.json(products);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -43,9 +43,9 @@ export const getProducts = async (req, res) => {
 export const getAmazingProducts = async (req, res) => {
   try {
     const products = await Product.find({ isAmazing: true });
-    return res.json({ success: true, data: products });
+    return res.json(products);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -53,9 +53,9 @@ export const getAmazingProducts = async (req, res) => {
 export const searchProducts = async (req, res) => {
   try {
     const products = await Product.find({ search: req.query.q || '' });
-    return res.json({ success: true, data: products });
+    return res.json(products);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -64,11 +64,11 @@ export const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) {
-      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
+      return res.status(404).json({ message: 'محصول یافت نشد' });
     }
-    return res.json({ success: true, data: product });
+    return res.json(product);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -78,9 +78,9 @@ export const createProduct = async (req, res) => {
     const data = { ...req.body };
     if (req.file) data.image = `/uploads/products/${req.file.filename}`;
     const product = await Product.create(data);
-    return res.status(201).json({ success: true, message: 'محصول با موفقیت ثبت شد', data: product });
+    return res.status(201).json(product);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -89,7 +89,7 @@ export const updateProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) {
-      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
+      return res.status(404).json({ message: 'محصول یافت نشد' });
     }
 
     const data = { ...req.body };
@@ -103,9 +103,9 @@ export const updateProduct = async (req, res) => {
     }
 
     const updated = await Product.findByIdAndUpdate(req.params.id, data, { new: true });
-    return res.json({ success: true, message: 'محصول با موفقیت ویرایش شد', data: updated });
+    return res.json(updated);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -114,7 +114,7 @@ export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) {
-      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
+      return res.status(404).json({ message: 'محصول یافت نشد' });
     }
 
     // حذف فیزیکی تصویر محصول از هاست
@@ -124,6 +124,6 @@ export const deleteProduct = async (req, res) => {
     await Product.findByIdAndDelete(req.params.id);
     return res.json({ success: true, message: 'محصول و تصویر مربوطه با موفقیت حذف شد' });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };

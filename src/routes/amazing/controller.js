@@ -4,9 +4,9 @@ import { Product } from '../../models/product.js';
 export const getAmazingProducts = async (req, res) => {
   try {
     const products = await Product.find({ isAmazing: true });
-    return res.json({ success: true, data: products });
+    return res.json(products);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -15,11 +15,11 @@ export const getAmazingProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product || !product.isAmazing) {
-      return res.status(404).json({ success: false, message: 'محصول شگفت‌انگیز یافت نشد' });
+      return res.status(404).json({ message: 'محصول شگفت‌انگیز یافت نشد' });
     }
-    return res.json({ success: true, data: product });
+    return res.json(product);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -32,9 +32,9 @@ export const createAmazingProduct = async (req, res) => {
     const data = { ...req.body, isAmazing: true };
     if (req.file) data.image = `/uploads/products/${req.file.filename}`;
     const product = await Product.create(data);
-    return res.status(201).json({ success: true, message: 'محصول شگفت‌انگیز ثبت شد و شگفت‌انگیزهای قبلی غیرفعال شدند', data: product });
+    return res.status(201).json(product);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -43,13 +43,13 @@ export const updateAmazingProduct = async (req, res) => {
   try {
     const data = { ...req.body };
     if (req.file) data.image = `/uploads/products/${req.file.filename}`;
-    const product = await Product.findByIdAndUpdate(req.params.id, data);
+    const product = await Product.findByIdAndUpdate(req.params.id, data, { new: true });
     if (!product) {
-      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
+      return res.status(404).json({ message: 'محصول یافت نشد' });
     }
-    return res.json({ success: true, message: 'محصول ویرایش شد', data: product });
+    return res.json(product);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -58,11 +58,11 @@ export const deleteAmazingProduct = async (req, res) => {
   try {
     const deleted = await Product.findByIdAndDelete(req.params.id);
     if (!deleted) {
-      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
+      return res.status(404).json({ message: 'محصول یافت نشد' });
     }
     return res.json({ success: true, message: 'محصول حذف شد' });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -71,7 +71,7 @@ export const toggleAmazingProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) {
-      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
+      return res.status(404).json({ message: 'محصول یافت نشد' });
     }
 
     const nextState = !product.isAmazing;
@@ -84,12 +84,8 @@ export const toggleAmazingProduct = async (req, res) => {
     product.isAmazing = nextState;
     await product.save();
 
-    return res.json({
-      success: true,
-      message: product.isAmazing ? 'محصول به عنوان تنها محصول شگفت‌انگیز تنظیم شد' : 'محصول از شگفت‌انگیزها حذف شد',
-      data: product
-    });
+    return res.json(product);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };

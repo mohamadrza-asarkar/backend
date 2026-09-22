@@ -12,7 +12,7 @@ export const register = async (req, res) => {
 
     const existingUser = await User.findOne({ phone: cleanPhone });
     if (existingUser) {
-      return res.status(400).json({ success: false, message: 'این شماره موبایل قبلاً ثبت شده است' });
+      return res.status(400).json({ message: 'این شماره موبایل قبلاً ثبت شده است' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -25,15 +25,15 @@ export const register = async (req, res) => {
     });
 
     const token = jwt.sign({ id: user._id, phone: user.phone, role: user.role, admin: user.role === 'admin' }, jwtKey);
-    const { password: _, ...userData } = user;
+    const userData = user.toObject();
+    delete userData.password;
 
     return res.status(201).json({
-      success: true,
-      message: 'ثبت‌نام با موفقیت انجام شد',
-      data: { user: userData, token }
+      user: userData,
+      token
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -45,42 +45,48 @@ export const login = async (req, res) => {
 
     const user = await User.findOne({ phone: cleanPhone });
     if (!user) {
-      return res.status(401).json({ success: false, message: 'شماره موبایل یا رمز عبور اشتباه است' });
+      return res.status(401).json({ message: 'شماره موبایل یا رمز عبور اشتباه است' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'شماره موبایل یا رمز عبور اشتباه است' });
+      return res.status(401).json({ message: 'شماره موبایل یا رمز عبور اشتباه است' });
     }
 
     const token = jwt.sign({ id: user._id, phone: user.phone, role: user.role, admin: user.role === 'admin' }, jwtKey);
-    const { password: _, ...userData } = user;
+    const userData = user.toObject();
+    delete userData.password;
 
     return res.json({
-      success: true,
-      message: 'ورود با موفقیت انجام شد',
-      data: { user: userData, token }
+      user: userData,
+      token
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
 // اطلاعات کاربر لاگین شده
 export const getMe = async (req, res) => {
-  const { password: _, ...userData } = req.user;
-  return res.json({ success: true, data: { user: userData } });
+  const user = req.user;
+  const userData = user.toObject ? user.toObject() : { ...user };
+  delete userData.password;
+  return res.json({ user: userData });
 };
 
 // ویرایش پروفایل
 export const updateProfile = async (req, res) => {
   try {
     const { name, address, avatar } = req.body;
-    const updated = await User.findByIdAndUpdate(req.user._id, { name, address, avatar });
-    const { password: _, ...userData } = updated || {};
-    return res.json({ success: true, message: 'پروفایل به‌روزرسانی شد', data: { user: userData } });
+    const updated = await User.findByIdAndUpdate(req.user._id, { name, address, avatar }, { new: true });
+    if (!updated) {
+      return res.status(404).json({ message: 'کاربر یافت نشد' });
+    }
+    const userData = updated.toObject();
+    delete userData.password;
+    return res.json({ user: userData });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -90,13 +96,13 @@ export const changePassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     const isMatch = await bcrypt.compare(currentPassword, req.user.password);
     if (!isMatch) {
-      return res.status(400).json({ success: false, message: 'رمز عبور فعلی اشتباه است' });
+      return res.status(400).json({ message: 'رمز عبور فعلی اشتباه است' });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await User.findByIdAndUpdate(req.user._id, { password: hashedPassword });
     return res.json({ success: true, message: 'رمز عبور با موفقیت تغییر یافت' });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };

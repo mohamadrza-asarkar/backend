@@ -28,9 +28,9 @@ const deleteImageFile = (imagePath) => {
 export const getSlides = async (req, res) => {
   try {
     const slides = await Slide.find();
-    return res.json({ success: true, data: slides });
+    return res.json(slides);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -39,11 +39,11 @@ export const getSlideById = async (req, res) => {
   try {
     const slide = await Slide.findById(req.params.id);
     if (!slide) {
-      return res.status(404).json({ success: false, message: 'اسلاید یافت نشد' });
+      return res.status(404).json({ message: 'اسلاید یافت نشد' });
     }
-    return res.json({ success: true, data: slide });
+    return res.json(slide);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -52,12 +52,12 @@ export const createSlide = async (req, res) => {
   try {
     const image = req.file ? `/uploads/slides/${req.file.filename}` : req.body.image;
     if (!image) {
-      return res.status(400).json({ success: false, message: 'تصویر اسلاید الزامی است' });
+      return res.status(400).json({ message: 'تصویر اسلاید الزامی است' });
     }
     const slide = await Slide.create({ image });
-    return res.status(201).json({ success: true, message: 'اسلاید با موفقیت ثبت شد', data: slide });
+    return res.status(201).json(slide);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -66,7 +66,7 @@ export const updateSlide = async (req, res) => {
   try {
     const slide = await Slide.findById(req.params.id);
     if (!slide) {
-      return res.status(404).json({ success: false, message: 'اسلاید یافت نشد' });
+      return res.status(404).json({ message: 'اسلاید یافت نشد' });
     }
 
     const newImage = req.file ? `/uploads/slides/${req.file.filename}` : req.body.image;
@@ -78,9 +78,9 @@ export const updateSlide = async (req, res) => {
     }
 
     await slide.save();
-    return res.json({ success: true, message: 'اسلاید ویرایش شد', data: slide });
+    return res.json(slide);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -89,7 +89,7 @@ export const deleteSlide = async (req, res) => {
   try {
     const slide = await Slide.findById(req.params.id);
     if (!slide) {
-      return res.status(404).json({ success: false, message: 'اسلاید یافت نشد' });
+      return res.status(404).json({ message: 'اسلاید یافت نشد' });
     }
 
     // حذف فیزیکی فایل تصویر اسلاید از دیسک/سرور
@@ -100,6 +100,6 @@ export const deleteSlide = async (req, res) => {
 
     return res.json({ success: true, message: 'اسلاید و تصویر مربوطه با موفقیت حذف شدند' });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };

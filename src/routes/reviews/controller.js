@@ -6,9 +6,9 @@ export const getProductReviews = async (req, res) => {
   try {
     const filter = req.query.productId ? { productId: req.query.productId } : {};
     const reviews = await Review.find(filter);
-    return res.json({ success: true, data: reviews });
+    return res.json(reviews);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -18,7 +18,7 @@ export const createReview = async (req, res) => {
     const { productId, rating = 5, comment, text, sender } = req.body;
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
+      return res.status(404).json({ message: 'محصول یافت نشد' });
     }
 
     const review = await Review.create({
@@ -28,9 +28,9 @@ export const createReview = async (req, res) => {
       rating: Number(rating) || 5
     });
 
-    return res.status(201).json({ success: true, message: 'نظر با موفقیت ثبت شد', data: review });
+    return res.status(201).json(review);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -39,23 +39,23 @@ export const deleteReview = async (req, res) => {
   try {
     const deleted = await Review.findByIdAndDelete(req.params.id);
     if (!deleted) {
-      return res.status(404).json({ success: false, message: 'نظر یافت نشد' });
+      return res.status(404).json({ message: 'نظر یافت نشد' });
     }
     return res.json({ success: true, message: 'نظر حذف شد' });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
 // پاسخ به نظر (ادمین)
 export const replyReview = async (req, res) => {
   try {
-    const review = await Review.findByIdAndUpdate(req.params.id, { adminReply: req.body.reply });
+    const review = await Review.findByIdAndUpdate(req.params.id, { adminReply: req.body.reply }, { new: true });
     if (!review) {
-      return res.status(404).json({ success: false, message: 'نظر یافت نشد' });
+      return res.status(404).json({ message: 'نظر یافت نشد' });
     }
-    return res.json({ success: true, message: 'پاسخ ثبت شد', data: review });
+    return res.json(review);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };

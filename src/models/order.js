@@ -38,8 +38,7 @@ export const orderSchema = new mongoose.Schema({
     price: Number,
     quantity: { type: Number, default: 1 }
   }],
-  totalPrice: { type: Number, default: 0 },
-  time: { type: Date, default: Date.now }
+  totalPrice: { type: Number, default: 0 }
 }, {
   timestamps: true
 });

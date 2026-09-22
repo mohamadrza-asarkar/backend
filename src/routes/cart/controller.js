@@ -9,9 +9,9 @@ export const getCart = async (req, res) => {
     if (!cart) {
       cart = await Cart.create({ userId, products: [], totalPrice: 0 });
     }
-    return res.json({ success: true, data: cart });
+    return res.json(cart);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -23,7 +23,7 @@ export const addItemToCart = async (req, res) => {
 
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({ success: false, message: 'محصول یافت نشد' });
+      return res.status(404).json({ message: 'محصول یافت نشد' });
     }
 
     let cart = await Cart.findOne({ userId });
@@ -46,11 +46,11 @@ export const addItemToCart = async (req, res) => {
     }
 
     const totalPrice = products.reduce((sum, p) => sum + (Number(p.price || 0) * Number(p.quantity || 1)), 0);
-    cart = await Cart.findOneAndUpdate({ userId }, { products, totalPrice });
+    cart = await Cart.findOneAndUpdate({ userId }, { products, totalPrice }, { new: true });
 
-    return res.json({ success: true, message: 'محصول به سبد خرید اضافه شد', data: cart });
+    return res.json(cart);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -62,7 +62,7 @@ export const updateCartItem = async (req, res) => {
     const qty = Number(req.body.quantity);
 
     let cart = await Cart.findOne({ userId });
-    if (!cart) return res.status(404).json({ success: false, message: 'سبد خرید یافت نشد' });
+    if (!cart) return res.status(404).json({ message: 'سبد خرید یافت نشد' });
 
     let products = cart.products || [];
     if (qty <= 0) {
@@ -73,11 +73,11 @@ export const updateCartItem = async (req, res) => {
     }
 
     const totalPrice = products.reduce((sum, p) => sum + (Number(p.price || 0) * Number(p.quantity || 1)), 0);
-    cart = await Cart.findOneAndUpdate({ userId }, { products, totalPrice });
+    cart = await Cart.findOneAndUpdate({ userId }, { products, totalPrice }, { new: true });
 
-    return res.json({ success: true, message: 'سبد خرید به‌روزرسانی شد', data: cart });
+    return res.json(cart);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -90,15 +90,15 @@ export const removeItemFromCart = async (req, res) => {
     const { productId } = req.params;
 
     let cart = await Cart.findOne({ userId });
-    if (!cart) return res.status(404).json({ success: false, message: 'سبد خرید یافت نشد' });
+    if (!cart) return res.status(404).json({ message: 'سبد خرید یافت نشد' });
 
     const products = (cart.products || []).filter(item => String(item.productId || item._id) !== String(productId));
     const totalPrice = products.reduce((sum, p) => sum + (Number(p.price || 0) * Number(p.quantity || 1)), 0);
-    cart = await Cart.findOneAndUpdate({ userId }, { products, totalPrice });
+    cart = await Cart.findOneAndUpdate({ userId }, { products, totalPrice }, { new: true });
 
-    return res.json({ success: true, message: 'محصول از سبد خرید حذف شد', data: cart });
+    return res.json(cart);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -106,9 +106,9 @@ export const removeItemFromCart = async (req, res) => {
 export const clearCart = async (req, res) => {
   try {
     const userId = req.user?._id || req.user?.id || 'guest';
-    const cart = await Cart.findOneAndUpdate({ userId }, { products: [], totalPrice: 0 });
-    return res.json({ success: true, message: 'سبد خرید خالی شد', data: cart });
+    const cart = await Cart.findOneAndUpdate({ userId }, { products: [], totalPrice: 0 }, { new: true });
+    return res.json(cart);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };

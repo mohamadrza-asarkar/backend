@@ -15,14 +15,11 @@ export const getDashboardStats = async (req, res) => {
     const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.totalPrice) || 0), 0);
 
     return res.json({
-      success: true,
-      data: {
-        summary: { totalRevenue, totalOrders, totalProducts, totalUsers, totalReviews },
-        recentOrders: orders.slice(0, 10)
-      }
+      summary: { totalRevenue, totalOrders, totalProducts, totalUsers, totalReviews },
+      recentOrders: orders.slice(0, 10)
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -30,24 +27,29 @@ export const getDashboardStats = async (req, res) => {
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find();
-    const sanitized = users.map(({ password, ...u }) => u);
-    return res.json({ success: true, data: sanitized });
+    const sanitized = users.map(user => {
+      const u = user.toObject ? user.toObject() : { ...user };
+      delete u.password;
+      return u;
+    });
+    return res.json(sanitized);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
 // تغییر نقش کاربر (ادمین)
 export const updateUserRole = async (req, res) => {
   try {
-    const updated = await User.findByIdAndUpdate(req.params.id, { role: req.body.role });
+    const updated = await User.findByIdAndUpdate(req.params.id, { role: req.body.role }, { new: true });
     if (!updated) {
-      return res.status(404).json({ success: false, message: 'کاربر یافت نشد' });
+      return res.status(404).json({ message: 'کاربر یافت نشد' });
     }
-    const { password, ...userData } = updated;
-    return res.json({ success: true, message: 'نقش کاربر به‌روزرسانی شد', data: userData });
+    const userData = updated.toObject();
+    delete userData.password;
+    return res.json(userData);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -56,13 +58,17 @@ export const toggleUserStatus = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'کاربر یافت نشد' });
+      return res.status(404).json({ message: 'کاربر یافت نشد' });
     }
-    const updated = await User.findByIdAndUpdate(req.params.id, { isActive: !user.isActive });
-    const { password, ...userData } = updated;
-    return res.json({ success: true, message: 'وضعیت کاربر تغییر یافت', data: userData });
+    const updated = await User.findByIdAndUpdate(req.params.id, { isActive: !user.isActive }, { new: true });
+    if (!updated) {
+      return res.status(404).json({ message: 'کاربر یافت نشد' });
+    }
+    const userData = updated.toObject();
+    delete userData.password;
+    return res.json(userData);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -70,8 +76,8 @@ export const toggleUserStatus = async (req, res) => {
 export const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find();
-    return res.json({ success: true, data: orders });
+    return res.json(orders);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
