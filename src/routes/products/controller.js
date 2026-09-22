@@ -86,6 +86,40 @@ export const createProduct = async (req, res) => {
       data.isAvailable = data.isAvailable === 'true' || data.isAvailable === true;
     }
 
+    // تنظیم خودکار تاریخ انقضای شگفت‌انگیز (مانند ۲ روز یا چند ساعت آینده)
+    if (data.isAmazing === true) {
+      if (data.amazingDurationDays !== undefined) {
+        const days = Number(data.amazingDurationDays) || 2;
+        data.amazingExpiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+      } else if (data.amazingDurationHours !== undefined) {
+        const hours = Number(data.amazingDurationHours) || 48;
+        data.amazingExpiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+      } else if (!data.amazingExpiresAt) {
+        // زمان پیش‌فرض: ۲ روز آینده
+        data.amazingExpiresAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+      }
+    } else {
+      data.amazingExpiresAt = null;
+    }
+
+    // کست کردن مقادیر عددی و محاسبه قیمت نهایی بر اساس درصد تخفیف ریاضی
+    const inputPrice = Number(data.price) || 0;
+    const discountPercent = Number(data.discountPercent) || 0;
+
+    data.discountPercent = discountPercent;
+    data.originalPrice = inputPrice; // قیمت اصلی همان قیمت ورودی اولیه است
+
+    if (discountPercent > 0) {
+      // فرمول ریاضی: کم کردن درصد تخفیف از قیمت ورودی اصلی برای محاسبه قیمت فروش نهایی
+      data.price = Math.round(inputPrice - (inputPrice * discountPercent / 100));
+    } else {
+      data.price = inputPrice;
+    }
+
+    if (data.countInStock !== undefined) {
+      data.countInStock = Number(data.countInStock) || 0;
+    }
+
     const product = await Product.create(data);
     return res.status(201).json(product);
   } catch (error) {
@@ -117,6 +151,40 @@ export const updateProduct = async (req, res) => {
     }
     if (data.isAvailable !== undefined) {
       data.isAvailable = data.isAvailable === 'true' || data.isAvailable === true;
+    }
+
+    // تنظیم خودکار تاریخ انقضای شگفت‌انگیز (مانند ۲ روز یا چند ساعت آینده)
+    const nextAmazingState = data.isAmazing !== undefined ? data.isAmazing : product.isAmazing;
+    if (nextAmazingState === true) {
+      if (data.amazingDurationDays !== undefined) {
+        const days = Number(data.amazingDurationDays) || 2;
+        data.amazingExpiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+      } else if (data.amazingDurationHours !== undefined) {
+        const hours = Number(data.amazingDurationHours) || 48;
+        data.amazingExpiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+      } else if (!product.amazingExpiresAt && !data.amazingExpiresAt) {
+        // زمان پیش‌فرض: ۲ روز آینده
+        data.amazingExpiresAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+      }
+    } else {
+      data.amazingExpiresAt = null;
+    }
+
+    // کست کردن مقادیر عددی و محاسبه قیمت نهایی بر اساس درصد تخفیف ریاضی
+    const inputPrice = data.price !== undefined ? Number(data.price) : product.originalPrice;
+    const discountPercent = data.discountPercent !== undefined ? Number(data.discountPercent) : product.discountPercent;
+
+    data.discountPercent = discountPercent;
+    data.originalPrice = inputPrice; // قیمت اصلی همان قیمت ورودی است
+
+    if (discountPercent > 0) {
+      data.price = Math.round(inputPrice - (inputPrice * discountPercent / 100));
+    } else {
+      data.price = inputPrice;
+    }
+
+    if (data.countInStock !== undefined) {
+      data.countInStock = Number(data.countInStock) || 0;
     }
 
     const updated = await Product.findByIdAndUpdate(req.params.id, data, { new: true });
