@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 import apiRouter from './src/routes/index.js';
 import { apiLimiter } from './src/middlewares/rateLimit.js';
 import { errorHandler, notFoundHandler } from './src/middlewares/error.js';
+import { imageUrlAbsoluteMiddleware } from './src/middlewares/absoluteUrl.js';
 
 // Load environment variables
 dotenv.config();
@@ -37,8 +38,8 @@ app.use('/public/uploads', express.static(path.join(__dirname, 'public/uploads')
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// نقطه اتصال روتر اصلی به برنامه
-app.use('/api', apiRouter);
+// نقطه اتصال روتر اصلی به برنامه (به همراه میان‌افزار خودکارساز آدرس‌های عکس مطلق)
+app.use('/api', imageUrlAbsoluteMiddleware, apiRouter);
 
 // مدیریت ۴۰۴ و خطاها
 app.use(notFoundHandler);
