@@ -81,3 +81,16 @@ export const getAllOrders = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
+// حذف کاربر (ادمین)
+export const deleteUser = async (req, res) => {
+  try {
+    const deleted = await User.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ message: 'کاربر یافت نشد' });
+    }
+    return res.json({ success: true, message: 'کاربر با موفقیت حذف شد' });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};

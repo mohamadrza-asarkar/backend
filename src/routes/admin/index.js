@@ -4,7 +4,8 @@ import {
   getAllUsers,
   updateUserRole,
   toggleUserStatus,
-  getAllOrders
+  getAllOrders,
+  deleteUser
 } from './controller.js';
 import { isAdmin } from '../../middlewares/isAdmin.js';
 
@@ -17,6 +18,7 @@ router.get('/dashboard', getDashboardStats);
 router.get('/users', getAllUsers);
 router.put('/users/:id/role', updateUserRole);
 router.put('/users/:id/toggle-status', toggleUserStatus);
+router.delete('/users/:id', deleteUser);
 router.get('/orders', getAllOrders);
 
 export default router;
