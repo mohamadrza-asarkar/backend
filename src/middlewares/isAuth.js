@@ -17,8 +17,12 @@ export async function isAuth(req, res, next) {
       });
     }
 
-    if (typeof token === 'string' && token.startsWith('Bearer ')) {
-      token = token.slice(7).trim();
+    if (typeof token === 'string') {
+      token = token.trim();
+      if (token.startsWith('Bearer ')) {
+        token = token.slice(7).trim();
+      }
+      token = token.replace(/^["']|["']$/g, ''); // حذف کوتیشن‌های احتمالی از سمت کلاینت
     }
 
     const decoded = jwt.verify(token, jwtKey);
