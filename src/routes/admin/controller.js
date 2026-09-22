@@ -1,7 +1,13 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { User } from '../../models/user.js';
 import { Product } from '../../models/product.js';
 import { Order } from '../../models/order.js';
 import { Review } from '../../models/review.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // آمار کلی سیستم (ادمین)
 export const getDashboardStats = async (req, res) => {
@@ -90,6 +96,36 @@ export const deleteUser = async (req, res) => {
       return res.status(404).json({ message: 'کاربر یافت نشد' });
     }
     return res.json({ success: true, message: 'کاربر با موفقیت حذف شد' });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// حذف سفارش (ادمین)
+export const deleteOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: 'سفارش یافت نشد' });
+    }
+
+    if (order.paymentReceipt && typeof order.paymentReceipt === 'string') {
+      const receiptPath = order.paymentReceipt;
+      if (receiptPath.includes('/uploads/') || receiptPath.includes('uploads/')) {
+        const cleanPath = receiptPath.substring(receiptPath.indexOf('uploads/'));
+        const absolutePath = path.join(__dirname, '../../../public', cleanPath);
+        if (fs.existsSync(absolutePath)) {
+          try {
+            fs.unlinkSync(absolutePath);
+          } catch (err) {
+            console.error('Failed to delete receipt file:', err.message);
+          }
+        }
+      }
+    }
+
+    await Order.findByIdAndDelete(req.params.id);
+    return res.json({ success: true, message: 'سفارش با موفقیت حذف شد' });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

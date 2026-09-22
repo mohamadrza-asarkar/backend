@@ -5,7 +5,8 @@ import {
   updateUserRole,
   toggleUserStatus,
   getAllOrders,
-  deleteUser
+  deleteUser,
+  deleteOrder
 } from './controller.js';
 import { isAdmin } from '../../middlewares/isAdmin.js';
 
@@ -20,5 +21,6 @@ router.put('/users/:id/role', updateUserRole);
 router.put('/users/:id/toggle-status', toggleUserStatus);
 router.delete('/users/:id', deleteUser);
 router.get('/orders', getAllOrders);
+router.delete('/orders/:id', deleteOrder);
 
 export default router;

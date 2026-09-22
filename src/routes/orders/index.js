@@ -6,7 +6,8 @@ import {
   getOrderByTrackingCode,
   uploadPaymentReceipt,
   verifyPayment,
-  updateOrderStatus
+  updateOrderStatus,
+  deleteOrder
 } from './controller.js';
 import { isAuth } from '../../middlewares/isAuth.js';
 import { isAdmin } from '../../middlewares/isAdmin.js';
@@ -32,8 +33,9 @@ router.get('/:id', getOrderById);
 router.post('/:id/receipt', uploadReceipt.single('receipt'), uploadPaymentReceipt);
 router.put('/:id/receipt', uploadReceipt.single('receipt'), uploadPaymentReceipt);
 
-// عملیات ادمین: تایید/رد رسید پرداخت و تغییر وضعیت
+// عملیات ادمین: تایید/رد رسید پرداخت، تغییر وضعیت و حذف سفارش
 router.put('/:id/verify-payment', isAdmin, verifyPayment);
 router.put('/:id/status', isAdmin, updateOrderStatus);
+router.delete('/:id', isAdmin, deleteOrder);
 
 export default router;
