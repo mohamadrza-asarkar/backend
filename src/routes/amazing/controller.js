@@ -31,6 +31,12 @@ export const createAmazingProduct = async (req, res) => {
 
     const data = { ...req.body, isAmazing: true };
     if (req.file) data.image = `/uploads/products/${req.file.filename}`;
+    
+    // کست کردن مقادیر منطقی به بولین واقعی
+    if (data.isAvailable !== undefined) {
+      data.isAvailable = data.isAvailable === 'true' || data.isAvailable === true;
+    }
+
     const product = await Product.create(data);
     return res.status(201).json(product);
   } catch (error) {
@@ -43,6 +49,15 @@ export const updateAmazingProduct = async (req, res) => {
   try {
     const data = { ...req.body };
     if (req.file) data.image = `/uploads/products/${req.file.filename}`;
+    
+    // کست کردن مقادیر منطقی به بولین واقعی
+    if (data.isAmazing !== undefined) {
+      data.isAmazing = data.isAmazing === 'true' || data.isAmazing === true;
+    }
+    if (data.isAvailable !== undefined) {
+      data.isAvailable = data.isAvailable === 'true' || data.isAvailable === true;
+    }
+
     const product = await Product.findByIdAndUpdate(req.params.id, data, { new: true });
     if (!product) {
       return res.status(404).json({ message: 'محصول یافت نشد' });
